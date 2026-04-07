@@ -7,6 +7,8 @@
 constexpr double screen_width = 640;
 constexpr double screen_height = 480;
 constexpr int map_size = 24;
+constexpr int textureHeight = 64;
+constexpr int textureWidth = 64;
 
 struct SDL
 {
@@ -149,9 +151,15 @@ struct Map
     }
 };
 
-void handlePlayerInput()
+void generateTexture(std::vector<uint32_t> &texture, uint32_t brickColor)
 {
-
+    texture.resize(64 * 64);
+    for (int y = 0; y < 64; y++) {
+        for (int x = 0; x < 64; x++) {
+            bool edge = (y % 16 == 0) || ((x + (y / 16) * 16) % 32 == 0);
+            texture[y * 64 + x] = edge ? 0xFF000000 : brickColor;
+        }
+    }
 }
 
 int main(int argc, char* argv[])
@@ -162,6 +170,16 @@ int main(int argc, char* argv[])
     Player player;
     // Set up map
     Map map_grid;
+
+    // Initialize all 8 textures in your main loop
+    std::vector<uint32_t> texture[8];
+    
+    uint32_t colors[8] = { 0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00, 
+                        0xFFFF00FF, 0xFF00FFFF, 0xFFFFFFFF, 0xFF777777 };
+
+    for (int i = 0; i < 8; i++) {
+        generateTexture(texture[i], colors[i]);
+    }
 
     // Handle frame.
     SDL_Event event;
@@ -323,22 +341,43 @@ int main(int argc, char* argv[])
             if(draw_start < 0) draw_start = 0;
             if(draw_end >= screen_height) draw_end = screen_height - 1;
 
-            // Choose the color of the line.
-            uint32_t color;
-            switch(map_grid.grid[ray_curr_grid_x][ray_curr_grid_y])
+            // Determine which texture to use based on the map grid value.
+            int texNum = map_grid.grid[ray_curr_grid_x][ray_curr_grid_y] - 1;
+
+            // Calculate the exact point of wall hit (wallX) to determine the corresponding x-coordinate on the texture.
+            double wallX; 
+            if (side == 0) wallX = player.position.y + final_wall_dist * rayDir.y;
+            else           wallX = player.position.x + final_wall_dist * rayDir.x;
+            wallX -= floor(wallX); // Get only the fraction
+
+            // Calculate the x-coordinate on the texture (texX) by multiplying wallX by the texture width and converting to an integer.
+            int texX = (int)(wallX * (double)textureWidth);
+
+            // Flip texture if we are looking at the "back" of the wall
+            if(side == 0 && rayDir.x > 0) texX = textureWidth - texX - 1;
+            if(side == 1 && rayDir.y < 0) texX = textureWidth - texX - 1;
+
+            // Calculate the step size for texture coordinate interpolation
+            double step = 1.0 * textureHeight / line_height;
+            // Calculate the initial texture position
+            double texPos = (draw_start - screen_height / 2 + line_height / 2) * step;
+
+            // Iterate through the vertical slice of the wall
+            for(int y = draw_start; y < draw_end; y++)
             {
-                case 1:  color = 0xFFBD6519;    break; // Orange
-                case 2:  color = 0xFFA4FFA4;    break; // Green
-                case 3:  color = 0xFFDDA0DD;    break; // Plum
-                case 4:  color = 0xFFFFFFFF;    break; // White
-                default: color = 0xFFFFFF00;    break; // Yellow
+                // Cast the texture position to an integer and mask it to stay within 0-63
+                int texY = (int)texPos & (textureHeight - 1);
+                texPos += step;
+
+                // Get the color from the texture using texNum, texX, and texY.
+                uint32_t color = texture[texNum][textureHeight * texY + texX];
+
+                // Apply shading (75% brightness) if it's a Y-side hit
+                if (side == 1) color = ((color & 0xFEFEFEFE) >> 1) + ((color & 0xFCFCFCFC) >> 2);
+
+                // Set the pixel color in the pixel buffer at (x, y) to the color obtained from the texture.
+                sdl.pixelBuffer[y][x] = color;
             }
-
-            // Apply shading to the color based on which side was hit (x or y) at 75% brightness.
-            if (side == 1) color = ((color & 0xFEFEFEFE) >> 1) + ((color & 0xFCFCFCFC) >> 2);
-
-            // Draw the vertical line into your pixelBuffer.
-            for(int y=draw_start; y < draw_end; y++) sdl.pixelBuffer[y][x] = color;
 
         }
 
