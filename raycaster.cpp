@@ -50,44 +50,28 @@ struct SDL
     {
         // Fill the pixelBuffer.
         for (int y = 0; y < screen_height; ++y)
-        {
             for (int x = 0; x < screen_width; ++x)
                 pixelBuffer[y][x] = color;
-        }
     }
 
     void fillBuffer(uint32_t bottomColor, uint32_t topColor)
     {
         // Fill the top half of pixelBuffer.
         for (int y = 0; y < screen_height / 2; ++y)
-        {
             for (int x = 0; x < screen_width; ++x)
-            {
                 pixelBuffer[y][x] = bottomColor;
-            }
-        }
 
         // Fill the bottom half of pixelBuffer.
         for (int y = screen_height / 2; y < screen_height; ++y)
-        {
             for (int x = 0; x < screen_width; ++x)
-            {
                 pixelBuffer[y][x] = topColor;
-            }
-        }
     }
 
     ~SDL()
     {
-        if (texture)
-            SDL_DestroyTexture(texture);
-
-        if (renderer)
-            SDL_DestroyRenderer(renderer);
-
-        if (window)
-            SDL_DestroyWindow(window);
-
+        if (texture) SDL_DestroyTexture(texture);
+        if (renderer) SDL_DestroyRenderer(renderer);
+        if (window) SDL_DestroyWindow(window);
         SDL_Quit();
     }
 };
@@ -206,26 +190,26 @@ int main(int argc, char* argv[])
             // Calculate the ray direction vector for the current column.
             rayDir = player.direction + (player.plane * cameraX);
 
-            // Determine the step direction (+1 or -1) for grid traversal.
-            int step_x;
-            if (rayDir.x > 0)       step_x = 1;
-            else if (rayDir.x < 0)  step_x = -1;
-            else                    step_x = 0; // Ray is perfectly vertical; no X-step needed.
+            // Determine the step direction (+1 or -1) for grid traversal, for both x and y.
+            int step_dir_x;
+            if (rayDir.x > 0)       step_dir_x = 1;
+            else if (rayDir.x < 0)  step_dir_x = -1;
+            else                    step_dir_x = 0; // Ray is perfectly vertical; no X-step needed.
 
-            int step_y;
-            if (rayDir.y > 0)       step_y = 1;
-            else if (rayDir.y < 0)  step_y = -1;
-            else                    step_y = 0; // Ray is perfectly horizontal; no Y-step needed.
+            int step_dir_y;
+            if (rayDir.y > 0)       step_dir_y = 1;
+            else if (rayDir.y < 0)  step_dir_y = -1;
+            else                    step_dir_y = 0; // Ray is perfectly horizontal; no Y-step needed.
 
-            // Identify the starting/current map square (integer coordinates).
+            // Identify the starting/current map square (integer coordinates), for both x and y.
             int ray_curr_grid_x = (int)player.position.x;
             int ray_curr_grid_y = (int)player.position.y;
 
-            // Calculate the total length the ray travels to cross one full grid square in X or Y.
+            // Calculate the total length the ray travels to cross one full grid square, for both x and y.
             double ray_step_cost_x = fabs(1.0 / rayDir.x);
             double ray_step_cost_y = fabs(1.0 / rayDir.y);
 
-            // Calculate the initial distance from the player to the first grid boundaries.
+            // Calculate the initial distance from the player to the first grid boundariesm, for both x and y.
             double dist_to_next_grid_line_x;
             if(rayDir.x > 0)        dist_to_next_grid_line_x = (ray_curr_grid_x + 1.0 - player.position.x) * ray_step_cost_x;
             else if(rayDir.x < 0)   dist_to_next_grid_line_x = (player.position.x - ray_curr_grid_x) * ray_step_cost_x;
@@ -238,14 +222,63 @@ int main(int argc, char* argv[])
 
             // Perform the DDA Loop until a wall is hit.
             bool hit = false;
+            int side = 0; // 0 for vertical wall, 1 for horizontal wall
             while(!hit)
             {
-                // TODO: IMPLEMENT DDA LOOP
+                // Compare dist_to_next_grid_line_x and dist_to_next_grid_line_y
+                // Increment the smaller distance by its corresponding step cost.
+                // Update the corresponding current grid coordinate by its step direction.
+                // Set side (0 for X, 1 for Y).
+                if(dist_to_next_grid_line_x > dist_to_next_grid_line_y)
+                {
+                    dist_to_next_grid_line_y += ray_step_cost_y;
+                    ray_curr_grid_y += step_dir_y;
+                    side = 1;
+                }
+                else
+                {
+                    dist_to_next_grid_line_x += ray_step_cost_x;
+                    ray_curr_grid_x += step_dir_x;
+                    side = 0;
+                }
+
+                // Check if map_grid.grid[ray_curr_grid_x][ray_curr_grid_y] > 0. If so, hit = true.
+                if(map_grid.grid[ray_curr_grid_x][ray_curr_grid_y] > 0) hit = true;
             }
 
             // Calculate the final_wall_dist (perpendicular distance).
+            double final_wall_dist;
+            if(side == 0)   final_wall_dist = dist_to_next_grid_line_x - ray_step_cost_x;
+            else            final_wall_dist = dist_to_next_grid_line_y - ray_step_cost_y;
+
             // Calculate line_height, draw_start, and draw_end.
+            int line_height;
+            line_height = screen_height / final_wall_dist;
+            int draw_start;
+            draw_start = -(line_height/2)+(screen_height/2);
+            int draw_end;
+            draw_end = (line_height/2)+(screen_height/2);
+            // Clamp these values, if necessary.
+            if(draw_start < 0) draw_start = 0;
+            if(draw_end >= screen_height) draw_end = screen_height - 1;    
+
+            // Choose the color of the line.
+            uint32_t color;
+            switch(map_grid.grid[ray_curr_grid_x][ray_curr_grid_y])
+            {
+                case 1:  color = 0xFFFF0000; break; // Red
+                case 2:  color = 0xFF00FF00; break; // Green
+                case 3:  color = 0xFF0000FF; break; // Blue
+                case 4:  color = 0xFFFFFFFF; break; // White
+                default: color = 0xFFFFFF00; break; // Yellow
+            }
+
+            // Apply shading to the color based on which side was hit (x or y).
+            if (side == 1) color = (color >> 1) & 0x7F7F7F7F;
+
             // Draw the vertical line into your pixelBuffer.
+            for(int y=draw_start; y < draw_end; y++) sdl.pixelBuffer[y][x] = color;
+
         }
 
         // Upload pixels
