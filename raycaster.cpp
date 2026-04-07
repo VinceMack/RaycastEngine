@@ -176,10 +176,44 @@ int main(int argc, char* argv[])
 
         // Handle Player Movement
         const uint8_t* state = SDL_GetKeyboardState(NULL);
-        if (state[SDL_SCANCODE_W]) player.position += player.direction * player.moveSpeed;
-        if (state[SDL_SCANCODE_S]) player.position -= player.direction * player.moveSpeed;
+        if (state[SDL_SCANCODE_W]) 
+        {
+            // Calcualte the new potential position by adding the direction vector multiplied by the movement speed to the current position.
+            // If the potential position is valid (i.e. not in a wall), update the player's position to the new position.
+            // Repeat with both the x and y coordinates, checking each separately to allow for sliding along walls.
+            double newX = player.position.x + player.direction.x * player.moveSpeed;
+            if(map_grid.grid[(int)newX][(int)player.position.y] == 0)
+            {
+                player.position.x = newX;
+            }
+
+            double newY = player.position.y + player.direction.y * player.moveSpeed;
+            if(map_grid.grid[(int)player.position.x][(int)newY] == 0)
+            {
+                player.position.y = newY;
+            }
+        }
+        if (state[SDL_SCANCODE_S])
+        {
+            // Calculate the new potential position by subtracting the direction vector multiplied by the movement speed from the current position.
+            // If the potential position is valid (i.e. not in a wall), update the player's position to the new position.
+            // Repeat with both the x and y coordinates, checking each separately to allow for sliding along walls.
+            double newX = player.position.x - player.direction.x * player.moveSpeed;
+            if(map_grid.grid[(int)newX][(int)player.position.y] == 0)
+            {
+                player.position.x = newX;
+            }
+
+            double newY = player.position.y - player.direction.y * player.moveSpeed;
+            if(map_grid.grid[(int)player.position.x][(int)newY] == 0)
+            {
+                player.position.y = newY;
+            }
+        }
         if (state[SDL_SCANCODE_D])
         {
+            // Rotate the direction vector and camera plane vector to the right by multiplying them with the appropriate rotation matrix.
+            // Repeat the same rotation for the camera plane vector.
             double oldDirX = player.direction.x;
             player.direction.x = player.direction.x * cos(player.rotSpeed) -  player.direction.y * sin(player.rotSpeed);
             player.direction.y = oldDirX * sin(player.rotSpeed) + player.direction.y * cos(player.rotSpeed);
@@ -190,6 +224,8 @@ int main(int argc, char* argv[])
         }
         if (state[SDL_SCANCODE_A])
         {
+            // Rotate the direction vector and camera plane vector to the left by multiplying them with the appropriate rotation matrix.
+            // Repeat the same rotation for the camera plane vector.
             double oldDirX = player.direction.x;
             player.direction.x = player.direction.x * cos(-player.rotSpeed) -  player.direction.y * sin(-player.rotSpeed);
             player.direction.y = oldDirX * sin(-player.rotSpeed) + player.direction.y * cos(-player.rotSpeed);
@@ -200,10 +236,9 @@ int main(int argc, char* argv[])
         }
 
         // Reset the pixel buffer:
-        // Fill the top half of the pixel buffer (celining)
+        // Fill the top half of the pixel buffer (ceiling)
         // Fill the bottom half of the pixel buffer (floor)
         sdl.fillBuffer(0xFF91D2FF, 0xFF50404D);
-        //sdl.fillBuffer(0x453D3B);
         
         // Iterate over every vertical column of the screen:
         double cameraX;
@@ -299,7 +334,7 @@ int main(int argc, char* argv[])
                 default: color = 0xFFFFFF00;    break; // Yellow
             }
 
-            // Apply shading to the color based on which side was hit (x or y).
+            // Apply shading to the color based on which side was hit (x or y) at 75% brightness.
             if (side == 1) color = ((color & 0xFEFEFEFE) >> 1) + ((color & 0xFCFCFCFC) >> 2);
 
             // Draw the vertical line into your pixelBuffer.
