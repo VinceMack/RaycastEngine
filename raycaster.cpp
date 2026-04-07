@@ -103,11 +103,15 @@ struct Player
     Point position;
     Vector2 direction;
     Vector2 plane;
+    double moveSpeed;
+    double rotSpeed;
 
-    Player(Point pos, Vector2 dir, Vector2 plane) : plane(plane)
+    Player(Point pos, Vector2 dir, Vector2 plane, double rotationSpeed, double movementSpeed) : plane(plane)
     {
         position = pos;
         direction = dir;
+        moveSpeed = movementSpeed;
+        rotSpeed = rotationSpeed;
     }
 
     Player()
@@ -115,6 +119,8 @@ struct Player
         position = {22.0, 12.0};
         direction = {0.0, -1.0};
         plane = {0.66, 0.0};
+        moveSpeed = 0.005;
+        rotSpeed = 0.003;
     }
 };
 
@@ -154,6 +160,11 @@ struct Map
     }
 };
 
+void handlePlayerInput()
+{
+
+}
+
 int main(int argc, char* argv[])
 {
     // Set up SDL
@@ -172,6 +183,31 @@ int main(int argc, char* argv[])
         {
             if (event.type == SDL_QUIT)
                 sdl.running = false;
+        }
+
+        // Handle Player Movement
+        const uint8_t* state = SDL_GetKeyboardState(NULL);
+        if (state[SDL_SCANCODE_W]) player.position += player.direction * player.moveSpeed;
+        if (state[SDL_SCANCODE_S]) player.position -= player.direction * player.moveSpeed;
+        if (state[SDL_SCANCODE_D])
+        {
+            double oldDirX = player.direction.x;
+            player.direction.x = player.direction.x * cos(player.rotSpeed) -  player.direction.y * sin(player.rotSpeed);
+            player.direction.y = oldDirX * sin(player.rotSpeed) + player.direction.y * cos(player.rotSpeed);
+
+            oldDirX = player.plane.x;
+            player.plane.x = player.plane.x * cos(player.rotSpeed) -  player.plane.y * sin(player.rotSpeed);
+            player.plane.y = oldDirX * sin(player.rotSpeed) + player.plane.y * cos(player.rotSpeed);
+        }
+        if (state[SDL_SCANCODE_A])
+        {
+            double oldDirX = player.direction.x;
+            player.direction.x = player.direction.x * cos(-player.rotSpeed) -  player.direction.y * sin(-player.rotSpeed);
+            player.direction.y = oldDirX * sin(-player.rotSpeed) + player.direction.y * cos(-player.rotSpeed);
+
+            oldDirX = player.plane.x;
+            player.plane.x = player.plane.x * cos(-player.rotSpeed) -  player.plane.y * sin(-player.rotSpeed);
+            player.plane.y = oldDirX * sin(-player.rotSpeed) + player.plane.y * cos(-player.rotSpeed);
         }
 
         // Reset the pixel buffer:
