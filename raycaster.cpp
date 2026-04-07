@@ -372,8 +372,20 @@ int main(int argc, char* argv[])
                 // Get the color from the texture using texNum, texX, and texY.
                 uint32_t color = texture[texNum][textureHeight * texY + texX];
 
-                // Apply shading (75% brightness) if it's a Y-side hit
-                if (side == 1) color = ((color & 0xFEFEFEFE) >> 1) + ((color & 0xFCFCFCFC) >> 2);
+                // Calculate fog effect based on distance. The farther the wall, the more it should blend with the fog color (e.g., gray).
+                double fogDensity = 0.07; 
+                double visibility = 1.0 / exp(final_wall_dist * fogDensity);
+
+                // Clamp to ensure it stays between 0 and 1
+                if (visibility > 1.0) visibility = 1.0;
+                if (visibility < 0.0) visibility = 0.0;
+
+                // Apply the fog effect by blending the wall color with a fog color (e.g., 0xFF777777) based on visibility.
+                uint32_t fogColor = 0xFF777777;
+                uint8_t r = ((color >> 16) & 0xFF) * visibility + ((fogColor >> 16) & 0xFF) * (1 - visibility);
+                uint8_t g = ((color >> 8) & 0xFF) * visibility + ((fogColor >> 8) & 0xFF) * (1 - visibility);
+                uint8_t b = (color & 0xFF) * visibility + (fogColor & 0xFF) * (1 - visibility);
+                color = (0xFF << 24) | (r << 16) | (g << 8) | b;
 
                 // Set the pixel color in the pixel buffer at (x, y) to the color obtained from the texture.
                 sdl.pixelBuffer[y][x] = color;
