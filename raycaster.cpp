@@ -202,7 +202,7 @@ int main(int argc, char* argv[])
         // Reset the pixel buffer:
         // Fill the top half of the pixel buffer (celining)
         // Fill the bottom half of the pixel buffer (floor)
-        sdl.fillBuffer(0xFF0000FF, 0xFFC0C0C0);
+        sdl.fillBuffer(0xFF91D2FF, 0xFF50404D);
         //sdl.fillBuffer(0x453D3B);
         
         // Iterate over every vertical column of the screen:
@@ -292,15 +292,15 @@ int main(int argc, char* argv[])
             uint32_t color;
             switch(map_grid.grid[ray_curr_grid_x][ray_curr_grid_y])
             {
-                case 1:  color = 0xFF50404D;    break; // Purple Taupe
-                case 2:  color = 0xFF00FF00;    break; // Green
+                case 1:  color = 0xFFBD6519;    break; // Orange
+                case 2:  color = 0xFFA4FFA4;    break; // Green
                 case 3:  color = 0xFFDDA0DD;    break; // Plum
                 case 4:  color = 0xFFFFFFFF;    break; // White
                 default: color = 0xFFFFFF00;    break; // Yellow
             }
 
             // Apply shading to the color based on which side was hit (x or y).
-            if (side == 1) color = (color >> 1) & 0x7F7F7F7F;
+            if (side == 1) color = ((color & 0xFEFEFEFE) >> 1) + ((color & 0xFCFCFCFC) >> 2);
 
             // Draw the vertical line into your pixelBuffer.
             for(int y=draw_start; y < draw_end; y++) sdl.pixelBuffer[y][x] = color;
