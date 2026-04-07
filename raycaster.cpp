@@ -54,17 +54,17 @@ struct SDL
                 pixelBuffer[y][x] = color;
     }
 
-    void fillBuffer(uint32_t bottomColor, uint32_t topColor)
+    void fillBuffer(uint32_t topColor, uint32_t bottomColor)
     {
-        // Fill the top half of pixelBuffer.
+        // Fill the top half of pixelBuffer (Ceiling)
         for (int y = 0; y < screen_height / 2; ++y)
             for (int x = 0; x < screen_width; ++x)
-                pixelBuffer[y][x] = bottomColor;
+                pixelBuffer[y][x] = topColor;
 
-        // Fill the bottom half of pixelBuffer.
+        // Fill the bottom half of pixelBuffer (Floor)
         for (int y = screen_height / 2; y < screen_height; ++y)
             for (int x = 0; x < screen_width; ++x)
-                pixelBuffer[y][x] = topColor;
+                pixelBuffer[y][x] = bottomColor;
     }
 
     ~SDL()
@@ -87,26 +87,15 @@ struct Vector2
     void operator-=(const Vector2& other) { x -= other.x; y -= other.y; }
 };
 
-struct Point
-{
-    double x, y;
-
-    Vector2 operator*(double scalar) const { return {x * scalar, y * scalar}; }
-    Vector2 operator+(const Vector2& other) const { return {x + other.x, y + other.y}; }
-    Vector2 operator-(const Vector2& other) const { return {x - other.x, y - other.y}; }
-    void operator+=(const Vector2& other) { x += other.x; y += other.y; }
-    void operator-=(const Vector2& other) { x -= other.x; y -= other.y; }
-};
-
 struct Player
 {
-    Point position;
+    Vector2 position;
     Vector2 direction;
     Vector2 plane;
     double moveSpeed;
     double rotSpeed;
 
-    Player(Point pos, Vector2 dir, Vector2 plane, double rotationSpeed, double movementSpeed) : plane(plane)
+    Player(Vector2 pos, Vector2 dir, Vector2 plane, double rotationSpeed, double movementSpeed) : plane(plane)
     {
         position = pos;
         direction = dir;
@@ -214,6 +203,7 @@ int main(int argc, char* argv[])
         // Fill the top half of the pixel buffer (celining)
         // Fill the bottom half of the pixel buffer (floor)
         sdl.fillBuffer(0xFF0000FF, 0xFFC0C0C0);
+        //sdl.fillBuffer(0x453D3B);
         
         // Iterate over every vertical column of the screen:
         double cameraX;
@@ -302,11 +292,11 @@ int main(int argc, char* argv[])
             uint32_t color;
             switch(map_grid.grid[ray_curr_grid_x][ray_curr_grid_y])
             {
-                case 1:  color = 0xFFFF0000; break; // Red
-                case 2:  color = 0xFF00FF00; break; // Green
-                case 3:  color = 0xFF0000FF; break; // Blue
-                case 4:  color = 0xFFFFFFFF; break; // White
-                default: color = 0xFFFFFF00; break; // Yellow
+                case 1:  color = 0xFF50404D;    break; // Purple Taupe
+                case 2:  color = 0xFF00FF00;    break; // Green
+                case 3:  color = 0xFFDDA0DD;    break; // Plum
+                case 4:  color = 0xFFFFFFFF;    break; // White
+                default: color = 0xFFFFFF00;    break; // Yellow
             }
 
             // Apply shading to the color based on which side was hit (x or y).
