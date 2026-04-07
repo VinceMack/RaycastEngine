@@ -215,11 +215,11 @@ int main(int argc, char* argv[])
             // Rotate the direction vector and camera plane vector to the right by multiplying them with the appropriate rotation matrix.
             // Repeat the same rotation for the camera plane vector.
             double oldDirX = player.direction.x;
-            player.direction.x = player.direction.x * cos(player.rotSpeed) -  player.direction.y * sin(player.rotSpeed);
+            player.direction.x = player.direction.x * cos(player.rotSpeed) - player.direction.y * sin(player.rotSpeed);
             player.direction.y = oldDirX * sin(player.rotSpeed) + player.direction.y * cos(player.rotSpeed);
 
             oldDirX = player.plane.x;
-            player.plane.x = player.plane.x * cos(player.rotSpeed) -  player.plane.y * sin(player.rotSpeed);
+            player.plane.x = player.plane.x * cos(player.rotSpeed) - player.plane.y * sin(player.rotSpeed);
             player.plane.y = oldDirX * sin(player.rotSpeed) + player.plane.y * cos(player.rotSpeed);
         }
         if (state[SDL_SCANCODE_A])
@@ -227,11 +227,11 @@ int main(int argc, char* argv[])
             // Rotate the direction vector and camera plane vector to the left by multiplying them with the appropriate rotation matrix.
             // Repeat the same rotation for the camera plane vector.
             double oldDirX = player.direction.x;
-            player.direction.x = player.direction.x * cos(-player.rotSpeed) -  player.direction.y * sin(-player.rotSpeed);
+            player.direction.x = player.direction.x * cos(-player.rotSpeed) - player.direction.y * sin(-player.rotSpeed);
             player.direction.y = oldDirX * sin(-player.rotSpeed) + player.direction.y * cos(-player.rotSpeed);
 
             oldDirX = player.plane.x;
-            player.plane.x = player.plane.x * cos(-player.rotSpeed) -  player.plane.y * sin(-player.rotSpeed);
+            player.plane.x = player.plane.x * cos(-player.rotSpeed) - player.plane.y * sin(-player.rotSpeed);
             player.plane.y = oldDirX * sin(-player.rotSpeed) + player.plane.y * cos(-player.rotSpeed);
         }
 
@@ -321,7 +321,7 @@ int main(int argc, char* argv[])
             draw_end = (line_height/2)+(screen_height/2);
             // Clamp these values, if necessary.
             if(draw_start < 0) draw_start = 0;
-            if(draw_end >= screen_height) draw_end = screen_height - 1;    
+            if(draw_end >= screen_height) draw_end = screen_height - 1;
 
             // Choose the color of the line.
             uint32_t color;
