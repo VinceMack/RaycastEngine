@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <string>
 
 constexpr double screen_width = 640;
 constexpr double screen_height = 480;
@@ -181,10 +182,21 @@ int main(int argc, char* argv[])
         generateTexture(texture[i], colors[i]);
     }
 
+    // Timing variables for frame rate control
+    uint32_t lastTicks = SDL_GetTicks();
+
     // Handle frame.
     SDL_Event event;
     while (sdl.running)
     {
+        uint32_t currentTicks = SDL_GetTicks();
+        double deltaTime = (currentTicks - lastTicks) / 1000.0;
+        lastTicks = currentTicks;
+
+        // Update FPS in window title (requires #include <string>)
+        double fps = 1.0 / (deltaTime > 0 ? deltaTime : 0.0001);
+        SDL_SetWindowTitle(sdl.window, ("Raycaster - FPS: " + std::to_string((int)fps)).c_str());
+
         // Handle SDL quit event (if the window closes, stop running)
         while (SDL_PollEvent(&event))
         {
@@ -363,6 +375,11 @@ int main(int argc, char* argv[])
             double texPos = (draw_start - screen_height / 2 + line_height / 2) * step;
 
             // Iterate through the vertical slice of the wall
+
+            double visibility = 1.0 / exp(final_wall_dist * 0.07);
+            visibility = std::min(1.0, std::max(0.0, visibility)); // Clamp 0 to 1
+            uint32_t fogColor = 0xFF777777;
+
             for(int y = draw_start; y < draw_end; y++)
             {
                 // Cast the texture position to an integer and mask it to stay within 0-63
@@ -373,18 +390,9 @@ int main(int argc, char* argv[])
                 uint32_t color = texture[texNum][textureHeight * texY + texX];
 
                 // Calculate fog effect based on distance. The farther the wall, the more it should blend with the fog color (e.g., gray).
-                double fogDensity = 0.07; 
-                double visibility = 1.0 / exp(final_wall_dist * fogDensity);
-
-                // Clamp to ensure it stays between 0 and 1
-                if (visibility > 1.0) visibility = 1.0;
-                if (visibility < 0.0) visibility = 0.0;
-
-                // Apply the fog effect by blending the wall color with a fog color (e.g., 0xFF777777) based on visibility.
-                uint32_t fogColor = 0xFF777777;
-                uint8_t r = ((color >> 16) & 0xFF) * visibility + ((fogColor >> 16) & 0xFF) * (1 - visibility);
-                uint8_t g = ((color >> 8) & 0xFF) * visibility + ((fogColor >> 8) & 0xFF) * (1 - visibility);
-                uint8_t b = (color & 0xFF) * visibility + (fogColor & 0xFF) * (1 - visibility);
+                uint8_t r = ((color >> 16) & 0xFF) * visibility + ((fogColor >> 16) & 0xFF) * (1.0 - visibility);
+                uint8_t g = ((color >> 8) & 0xFF) * visibility + ((fogColor >> 8) & 0xFF) * (1.0 - visibility);
+                uint8_t b = (color & 0xFF) * visibility + (fogColor & 0xFF) * (1.0 - visibility);
                 color = (0xFF << 24) | (r << 16) | (g << 8) | b;
 
                 // Set the pixel color in the pixel buffer at (x, y) to the color obtained from the texture.
