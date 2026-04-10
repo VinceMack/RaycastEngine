@@ -16,7 +16,7 @@ struct SDL
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* texture = nullptr;
-    uint32_t pixelBuffer[480 * 640] = {}; // Flat 1D array
+    std::vector<uint32_t> pixelBuffer;
     bool running = false;
 
     SDL(int width, int height)
@@ -46,6 +46,7 @@ struct SDL
             height
         );
 
+        pixelBuffer.resize(width * height, 0); 
         running = true;
     }
 
@@ -379,6 +380,8 @@ int main(int argc, char* argv[])
             uint32_t fogColor = 0xFF777777;
 
             // Pre-calculate the fog color part (FogColor * (1 - visibility))
+            double sideShade = (side == 1) ? 0.5 : 1.0; 
+            double finalVis = visibility * sideShade;
             double invVis = 1.0 - visibility;
             double fogR_part = 119.0 * invVis; // 0x77 is 119
             double fogG_part = 119.0 * invVis;
@@ -395,19 +398,18 @@ int main(int argc, char* argv[])
                 uint32_t color = texture[texNum][textureWidth * texX + texY];
 
                 // Calculate fog effect based on distance. The farther the wall, the more it should blend with the fog color (e.g., gray).
-                uint8_t r = ((color >> 16) & 0xFF) * visibility + fogR_part;
-                uint8_t g = ((color >> 8) & 0xFF) * visibility + fogG_part;
-                uint8_t b = (color & 0xFF) * visibility + fogB_part;
-                color = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                uint8_t r = ((color >> 16) & 0xFF) * finalVis + fogR_part;
+                uint8_t g = ((color >> 8) & 0xFF) * finalVis + fogG_part;
+                uint8_t b = (color & 0xFF) * finalVis + fogB_part;
 
                 // Set the pixel color in the pixel buffer at (x, y) to the color obtained from the texture.
-                *pixelPtr = color;
-                pixelPtr += (int)screen_width; // Jump to the next row at the same X coordinate
+                *pixelPtr = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                pixelPtr += (int)screen_width;
             }
         }
 
         // Upload pixels
-        SDL_UpdateTexture(sdl.texture, nullptr, sdl.pixelBuffer, (int)screen_width * sizeof(uint32_t));
+        SDL_UpdateTexture(sdl.texture, nullptr, sdl.pixelBuffer.data(), (int)screen_width * sizeof(uint32_t));
         // Clear frame
         SDL_RenderClear(sdl.renderer);
         // Draw texture
