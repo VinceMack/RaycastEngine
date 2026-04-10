@@ -16,7 +16,7 @@ struct SDL
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* texture = nullptr;
-    uint32_t pixelBuffer[480][640] = {};
+    uint32_t pixelBuffer[480 * 640] = {}; // Flat 1D array
     bool running = false;
 
     SDL(int width, int height)
@@ -51,23 +51,15 @@ struct SDL
 
     void fillBuffer(uint32_t color)
     {
-        // Fill the pixelBuffer.
-        for (int y = 0; y < screen_height; ++y)
-            for (int x = 0; x < screen_width; ++x)
-                pixelBuffer[y][x] = color;
+        for (int i = 0; i < screen_width * screen_height; ++i)
+            pixelBuffer[i] = color;
     }
 
     void fillBuffer(uint32_t topColor, uint32_t bottomColor)
     {
-        // Fill the top half of pixelBuffer (Ceiling)
-        for (int y = 0; y < screen_height / 2; ++y)
-            for (int x = 0; x < screen_width; ++x)
-                pixelBuffer[y][x] = topColor;
-
-        // Fill the bottom half of pixelBuffer (Floor)
-        for (int y = screen_height / 2; y < screen_height; ++y)
-            for (int x = 0; x < screen_width; ++x)
-                pixelBuffer[y][x] = bottomColor;
+        int half = (screen_width * screen_height) / 2;
+        for (int i = 0; i < half; ++i) pixelBuffer[i] = topColor;
+        for (int i = half; i < screen_width * screen_height; ++i) pixelBuffer[i] = bottomColor;
     }
 
     ~SDL()
@@ -111,8 +103,8 @@ struct Player
         position = {22.0, 12.0};
         direction = {0.0, -1.0};
         plane = {0.66, 0.0};
-        moveSpeed = 0.005;
-        rotSpeed = 0.003;
+        moveSpeed = 5;
+        rotSpeed = 3;
     }
 };
 
@@ -155,10 +147,11 @@ struct Map
 void generateTexture(std::vector<uint32_t> &texture, uint32_t brickColor)
 {
     texture.resize(64 * 64);
-    for (int y = 0; y < 64; y++) {
-        for (int x = 0; x < 64; x++) {
+    for (int x = 0; x < 64; x++) {      // x is the column
+        for (int y = 0; y < 64; y++) {  // y is the vertical pixel
             bool edge = (y % 16 == 0) || ((x + (y / 16) * 16) % 32 == 0);
-            texture[y * 64 + x] = edge ? 0xFF000000 : brickColor;
+            // Index by x first, then y, to make vertical stripes contiguous
+            texture[x * 64 + y] = edge ? 0xFF000000 : brickColor;
         }
     }
 }
@@ -205,19 +198,24 @@ int main(int argc, char* argv[])
         }
 
         // Handle Player Movement
+
+        // Scale speeds by the time elapsed since last frame
+        double frameMoveSpeed = player.moveSpeed * deltaTime;
+        double frameRotSpeed = player.rotSpeed * deltaTime;
+
         const uint8_t* state = SDL_GetKeyboardState(NULL);
         if (state[SDL_SCANCODE_W]) 
         {
             // Calcualte the new potential position by adding the direction vector multiplied by the movement speed to the current position.
             // If the potential position is valid (i.e. not in a wall), update the player's position to the new position.
             // Repeat with both the x and y coordinates, checking each separately to allow for sliding along walls.
-            double newX = player.position.x + player.direction.x * player.moveSpeed;
+            double newX = player.position.x + player.direction.x * frameMoveSpeed;
             if(map_grid.grid[(int)newX][(int)player.position.y] == 0)
             {
                 player.position.x = newX;
             }
 
-            double newY = player.position.y + player.direction.y * player.moveSpeed;
+            double newY = player.position.y + player.direction.y * frameMoveSpeed;
             if(map_grid.grid[(int)player.position.x][(int)newY] == 0)
             {
                 player.position.y = newY;
@@ -228,13 +226,13 @@ int main(int argc, char* argv[])
             // Calculate the new potential position by subtracting the direction vector multiplied by the movement speed from the current position.
             // If the potential position is valid (i.e. not in a wall), update the player's position to the new position.
             // Repeat with both the x and y coordinates, checking each separately to allow for sliding along walls.
-            double newX = player.position.x - player.direction.x * player.moveSpeed;
+            double newX = player.position.x - player.direction.x * frameMoveSpeed;
             if(map_grid.grid[(int)newX][(int)player.position.y] == 0)
             {
                 player.position.x = newX;
             }
 
-            double newY = player.position.y - player.direction.y * player.moveSpeed;
+            double newY = player.position.y - player.direction.y * frameMoveSpeed;
             if(map_grid.grid[(int)player.position.x][(int)newY] == 0)
             {
                 player.position.y = newY;
@@ -245,24 +243,24 @@ int main(int argc, char* argv[])
             // Rotate the direction vector and camera plane vector to the right by multiplying them with the appropriate rotation matrix.
             // Repeat the same rotation for the camera plane vector.
             double oldDirX = player.direction.x;
-            player.direction.x = player.direction.x * cos(player.rotSpeed) - player.direction.y * sin(player.rotSpeed);
-            player.direction.y = oldDirX * sin(player.rotSpeed) + player.direction.y * cos(player.rotSpeed);
+            player.direction.x = player.direction.x * cos(frameRotSpeed) - player.direction.y * sin(frameRotSpeed);
+            player.direction.y = oldDirX * sin(frameRotSpeed) + player.direction.y * cos(frameRotSpeed);
 
             oldDirX = player.plane.x;
-            player.plane.x = player.plane.x * cos(player.rotSpeed) - player.plane.y * sin(player.rotSpeed);
-            player.plane.y = oldDirX * sin(player.rotSpeed) + player.plane.y * cos(player.rotSpeed);
+            player.plane.x = player.plane.x * cos(frameRotSpeed) - player.plane.y * sin(frameRotSpeed);
+            player.plane.y = oldDirX * sin(frameRotSpeed) + player.plane.y * cos(frameRotSpeed);
         }
         if (state[SDL_SCANCODE_A])
         {
             // Rotate the direction vector and camera plane vector to the left by multiplying them with the appropriate rotation matrix.
             // Repeat the same rotation for the camera plane vector.
             double oldDirX = player.direction.x;
-            player.direction.x = player.direction.x * cos(-player.rotSpeed) - player.direction.y * sin(-player.rotSpeed);
-            player.direction.y = oldDirX * sin(-player.rotSpeed) + player.direction.y * cos(-player.rotSpeed);
+            player.direction.x = player.direction.x * cos(-frameRotSpeed) - player.direction.y * sin(-frameRotSpeed);
+            player.direction.y = oldDirX * sin(-frameRotSpeed) + player.direction.y * cos(-frameRotSpeed);
 
             oldDirX = player.plane.x;
-            player.plane.x = player.plane.x * cos(-player.rotSpeed) - player.plane.y * sin(-player.rotSpeed);
-            player.plane.y = oldDirX * sin(-player.rotSpeed) + player.plane.y * cos(-player.rotSpeed);
+            player.plane.x = player.plane.x * cos(-frameRotSpeed) - player.plane.y * sin(-frameRotSpeed);
+            player.plane.y = oldDirX * sin(-frameRotSpeed) + player.plane.y * cos(-frameRotSpeed);
         }
 
         // Reset the pixel buffer:
@@ -380,6 +378,13 @@ int main(int argc, char* argv[])
             visibility = std::min(1.0, std::max(0.0, visibility)); // Clamp 0 to 1
             uint32_t fogColor = 0xFF777777;
 
+            // Pre-calculate the fog color part (FogColor * (1 - visibility))
+            double invVis = 1.0 - visibility;
+            double fogR_part = 119.0 * invVis; // 0x77 is 119
+            double fogG_part = 119.0 * invVis;
+            double fogB_part = 119.0 * invVis;
+
+            uint32_t* pixelPtr = &sdl.pixelBuffer[draw_start * (int)screen_width + x];
             for(int y = draw_start; y < draw_end; y++)
             {
                 // Cast the texture position to an integer and mask it to stay within 0-63
@@ -387,22 +392,22 @@ int main(int argc, char* argv[])
                 texPos += step;
 
                 // Get the color from the texture using texNum, texX, and texY.
-                uint32_t color = texture[texNum][textureHeight * texY + texX];
+                uint32_t color = texture[texNum][textureWidth * texX + texY];
 
                 // Calculate fog effect based on distance. The farther the wall, the more it should blend with the fog color (e.g., gray).
-                uint8_t r = ((color >> 16) & 0xFF) * visibility + ((fogColor >> 16) & 0xFF) * (1.0 - visibility);
-                uint8_t g = ((color >> 8) & 0xFF) * visibility + ((fogColor >> 8) & 0xFF) * (1.0 - visibility);
-                uint8_t b = (color & 0xFF) * visibility + (fogColor & 0xFF) * (1.0 - visibility);
+                uint8_t r = ((color >> 16) & 0xFF) * visibility + fogR_part;
+                uint8_t g = ((color >> 8) & 0xFF) * visibility + fogG_part;
+                uint8_t b = (color & 0xFF) * visibility + fogB_part;
                 color = (0xFF << 24) | (r << 16) | (g << 8) | b;
 
                 // Set the pixel color in the pixel buffer at (x, y) to the color obtained from the texture.
-                sdl.pixelBuffer[y][x] = color;
+                *pixelPtr = color;
+                pixelPtr += (int)screen_width; // Jump to the next row at the same X coordinate
             }
-
         }
 
         // Upload pixels
-        SDL_UpdateTexture(sdl.texture, nullptr, sdl.pixelBuffer, 640 * sizeof(uint32_t));
+        SDL_UpdateTexture(sdl.texture, nullptr, sdl.pixelBuffer, (int)screen_width * sizeof(uint32_t));
         // Clear frame
         SDL_RenderClear(sdl.renderer);
         // Draw texture
