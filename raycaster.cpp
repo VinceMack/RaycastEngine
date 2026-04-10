@@ -130,21 +130,39 @@ struct Map
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-    {1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-    {1,4,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-    {1,4,0,0,0,0,5,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-    {1,4,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-    {1,4,0,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-    {1,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-    {1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,5,5,5,5,5,5,5,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,5,0,5,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,5,0,0,0,0,5,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,5,0,5,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,5,0,5,5,5,5,5,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,5,5,5,5,5,5,5,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
     };
 
-    Map()
-    {
-
-    }
+    Map() {}
 };
+
+void generateStoneSlabTexture(std::vector<uint32_t> &texture, uint32_t slabColor) {
+    texture.resize(textureWidth * textureHeight);
+    
+    // Define a specific grout color (e.g., a very dark gray)
+    uint32_t groutColor = 0xFF1A1A1A; 
+
+    for (int x = 0; x < textureWidth; x++) {
+        for (int y = 0; y < textureHeight; y++) {
+            // Check if the pixel is within the 2-pixel border on ANY of the 4 sides
+            bool isGrout = (x < 2 || x >= textureWidth - 2 || y < 2 || y >= textureHeight - 2);
+
+            if (isGrout) {
+                // Column-major storage: [x * height + y]
+                texture[x * textureHeight + y] = groutColor;
+            } else {
+                texture[x * textureHeight + y] = slabColor;
+            }
+        }
+    }
+}
 
 void generateBrickTexture(std::vector<uint32_t> &texture, uint32_t brickColor)
 {
@@ -234,7 +252,13 @@ int main(int argc, char* argv[])
                         0xFFFF00FF, 0xFF00FFFF, 0xFFFFFFFF, 0xFF777777 };
 
     for (int i = 0; i < 8; i++) {
-        generateBrickTexture(texture[i], colors[i]);
+        if (i == 3 || i == 6) {
+            // Use Stone Slabs for the Floor (3) and Ceiling (6)
+            generateStoneSlabTexture(texture[i], colors[i]);
+        } else {
+            // Use Bricks for the Walls (0, 1, 2, 4, 5, 7)
+            generateBrickTexture(texture[i], colors[i]);
+        }
     }
 
     // Timing variables for frame rate control
