@@ -234,7 +234,7 @@ int main(int argc, char* argv[])
                         0xFFFF00FF, 0xFF00FFFF, 0xFFFFFFFF, 0xFF777777 };
 
     for (int i = 0; i < 8; i++) {
-        generateTexture(texture[i], colors[i]);
+        generateBrickTexture(texture[i], colors[i]);
     }
 
     // Timing variables for frame rate control
