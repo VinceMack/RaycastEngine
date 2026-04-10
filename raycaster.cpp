@@ -238,19 +238,20 @@ int main(int argc, char* argv[])
     }
 
     // Timing variables for frame rate control
-    uint32_t lastTicks = SDL_GetTicks();
+    uint64_t lastCounter = SDL_GetPerformanceCounter();
+    double freq = (double)SDL_GetPerformanceFrequency();
 
     // Handle frame.
     SDL_Event event;
     while (sdl.running)
     {
-        uint32_t currentTicks = SDL_GetTicks();
-        double deltaTime = (currentTicks - lastTicks) / 1000.0;
-        lastTicks = currentTicks;
+        uint64_t currentCounter = SDL_GetPerformanceCounter();
+        double deltaTime = (double)(currentCounter - lastCounter) / freq;
+        lastCounter = currentCounter;
 
         // Update FPS in window title (requires #include <string>)
-        double fps = 1.0 / (deltaTime > 0 ? deltaTime : 0.0001);
-        SDL_SetWindowTitle(sdl.window, ("Raycaster - FPS: " + std::to_string((int)fps)).c_str());
+        double msPerFrame = deltaTime * 1000.0;
+        SDL_SetWindowTitle(sdl.window, ("Raycaster - Frame Time: " + std::to_string(msPerFrame) + "ms").c_str());
 
         // Handle SDL quit event (if the window closes, stop running)
         while (SDL_PollEvent(&event))
