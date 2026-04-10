@@ -146,7 +146,7 @@ struct Map
     }
 };
 
-void generateTexture(std::vector<uint32_t> &texture, uint32_t brickColor)
+void generateBrickTexture(std::vector<uint32_t> &texture, uint32_t brickColor)
 {
     texture.resize(64 * 64);
     for (int x = 0; x < 64; x++) {      // x is the column
@@ -154,6 +154,66 @@ void generateTexture(std::vector<uint32_t> &texture, uint32_t brickColor)
             bool edge = (y % 16 == 0) || ((x + (y / 16) * 16) % 32 == 0);
             // Index by x first, then y, to make vertical stripes contiguous
             texture[x * 64 + y] = edge ? 0xFF000000 : brickColor;
+        }
+    }
+}
+
+void renderTexturedFloor(std::vector<uint32_t>& pixelBuffer, const Player& player, const std::vector<uint32_t>* textures)
+{
+    uint32_t fogColor = 0xFF777777; 
+
+    #pragma omp parallel for
+    for (int y = screen_height / 2; y < screen_height; ++y)
+    {
+        // 1. Calculate row distance from the horizon (p) and player height (posZ)
+        float p = y - screen_height / 2;
+        float posZ = 0.5 * screen_height;
+        float rowDist = posZ / p;
+
+        // 1.1 Calculate fog for the current row distance
+        double visibility = 1.0 / exp(rowDist * 0.07);
+        visibility = std::min(1.0, std::max(0.0, visibility));
+        double invVis = 1.0 - visibility;
+        
+        // 1.2 Pre-calculate the fog parts (R, G, B)
+        double fogR_part = 119.0 * invVis; // 0x77 is 119
+        double fogG_part = 119.0 * invVis;
+        double fogB_part = 119.0 * invVis;
+
+        // 2. Calculate world coordinates of the leftmost and rightmost pixels
+        Vector2 rayDirLeft = player.direction - player.plane;
+        Vector2 rayDirRight = player.direction + player.plane;
+
+        // 3. Calculate how much the world position changes per pixel across the row
+        double floorStepX = rowDist * (rayDirRight.x - rayDirLeft.x) / screen_width;
+        double floorStepY = rowDist * (rayDirRight.y - rayDirLeft.y) / screen_width;
+
+        // 4. Start world position at the leftmost pixel
+        double floorX = player.position.x + rowDist * rayDirLeft.x;
+        double floorY = player.position.y + rowDist * rayDirLeft.y;
+
+        for (int x = 0; x < screen_width; ++x)
+        {
+            int tx = (int)(textureWidth * (floorX - floor(floorX))) & (textureWidth - 1);
+            int ty = (int)(textureHeight * (floorY - floor(floorY))) & (textureHeight - 1);
+            floorX += floorStepX;
+            floorY += floorStepY;
+
+            uint32_t fCol = textures[3][textureWidth * tx + ty];
+            uint32_t cCol = textures[6][textureWidth * tx + ty];
+
+            // 2. Apply fog to floor
+            uint8_t fr = ((fCol >> 16) & 0xFF) * visibility + fogR_part;
+            uint8_t fg = ((fCol >> 8) & 0xFF) * visibility + fogG_part;
+            uint8_t fb = (fCol & 0xFF) * visibility + fogB_part;
+
+            // 3. Apply fog to ceiling
+            uint8_t cr = ((cCol >> 16) & 0xFF) * visibility + fogR_part;
+            uint8_t cg = ((cCol >> 8) & 0xFF) * visibility + fogG_part;
+            uint8_t cb = (cCol & 0xFF) * visibility + fogB_part;
+
+            pixelBuffer[y * screen_width + x] = (0xFF << 24) | (fr << 16) | (fg << 8) | fb;
+            pixelBuffer[(screen_height - y - 1) * screen_width + x] = (0xFF << 24) | (cr << 16) | (cg << 8) | cb;
         }
     }
 }
@@ -268,7 +328,7 @@ int main(int argc, char* argv[])
         // Reset the pixel buffer:
         // Fill the top half of the pixel buffer (ceiling)
         // Fill the bottom half of the pixel buffer (floor)
-        sdl.fillBuffer(0xFF91D2FF, 0xFF50404D);
+        renderTexturedFloor(sdl.pixelBuffer, player, texture);
         
         // Iterate over every vertical column of the screen:
         #pragma omp parallel for
