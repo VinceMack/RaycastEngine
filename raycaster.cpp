@@ -4,9 +4,10 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <omp.h>
 
-constexpr double screen_width = 640;
-constexpr double screen_height = 480;
+constexpr int screen_width = 640;
+constexpr int screen_height = 480;
 constexpr int map_size = 24;
 constexpr int textureHeight = 64;
 constexpr int textureWidth = 64;
@@ -270,10 +271,12 @@ int main(int argc, char* argv[])
         sdl.fillBuffer(0xFF91D2FF, 0xFF50404D);
         
         // Iterate over every vertical column of the screen:
-        double cameraX;
-        Vector2 rayDir;
+        #pragma omp parallel for
         for(int x=0; x < screen_width; x++)
         {
+            double cameraX;
+            Vector2 rayDir;
+
             // Calculate cameraX (the x-coordinate in camera space, from -1 to 1).
             cameraX = 2.0 * x / screen_width - 1;
 
@@ -387,7 +390,7 @@ int main(int argc, char* argv[])
             double fogG_part = 119.0 * invVis;
             double fogB_part = 119.0 * invVis;
 
-            uint32_t* pixelPtr = &sdl.pixelBuffer[draw_start * (int)screen_width + x];
+            uint32_t* pixelPtr = &sdl.pixelBuffer[draw_start * screen_width + x];
             for(int y = draw_start; y < draw_end; y++)
             {
                 // Cast the texture position to an integer and mask it to stay within 0-63
@@ -404,12 +407,12 @@ int main(int argc, char* argv[])
 
                 // Set the pixel color in the pixel buffer at (x, y) to the color obtained from the texture.
                 *pixelPtr = (0xFF << 24) | (r << 16) | (g << 8) | b;
-                pixelPtr += (int)screen_width;
+                pixelPtr += screen_width;
             }
         }
 
         // Upload pixels
-        SDL_UpdateTexture(sdl.texture, nullptr, sdl.pixelBuffer.data(), (int)screen_width * sizeof(uint32_t));
+        SDL_UpdateTexture(sdl.texture, nullptr, sdl.pixelBuffer.data(), screen_width * sizeof(uint32_t));
         // Clear frame
         SDL_RenderClear(sdl.renderer);
         // Draw texture
