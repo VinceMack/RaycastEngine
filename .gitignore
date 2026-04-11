@@ -1,0 +1,22 @@
+// ignore everything but cpp and h files in include and src
+# Ignore all files
+*
+
+# Ignore .exe files
+*.exe
+
+# Except the SDL2 folder
+!SDL2/
+
+# Except the include and src directories
+!include/
+!src/
+
+# Except the README.md file
+!README.md
+
+# Except the .gitignore file itself
+!.gitignore
+
+# Except the build.bat file
+!build.bat

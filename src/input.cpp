@@ -37,34 +37,31 @@ void Input::handlePlayerInput(double deltaTime, Player& player, const Map& map_g
 {
     double frameMoveSpeed = player.moveSpeed * deltaTime;
     double frameRotSpeed = player.rotSpeed * deltaTime;
+    double buffer = 0.2; // the "size" of the player for collision purposes
 
     if (isActionPressed("Forward"))
     {
-        double newX = player.position.x + player.direction.x * frameMoveSpeed;
-        if (map_grid.at((int)newX, (int)player.position.y) == 0)
-        {
-            player.position.x = newX;
-        }
+        double moveX = player.direction.x * frameMoveSpeed;
+        double checkX = player.position.x + moveX + (moveX > 0 ? buffer : -buffer);
+        if (map_grid.at((int)checkX, (int)player.position.y) == 0)
+            player.position.x += moveX;
 
-        double newY = player.position.y + player.direction.y * frameMoveSpeed;
-        if (map_grid.at((int)player.position.x, (int)newY) == 0)
-        {
-            player.position.y = newY;
-        }
+        double moveY = player.direction.y * frameMoveSpeed;
+        double checkY = player.position.y + moveY + (moveY > 0 ? buffer : -buffer);
+        if (map_grid.at((int)player.position.x, (int)checkY) == 0)
+            player.position.y += moveY;
     }
     if (isActionPressed("Backward"))
     {
-        double newX = player.position.x - player.direction.x * frameMoveSpeed;
-        if (map_grid.at((int)newX, (int)player.position.y) == 0)
-        {
-            player.position.x = newX;
-        }
+        double moveX = player.direction.x * frameMoveSpeed;
+        double checkX = player.position.x - moveX + (moveX > 0 ? buffer : -buffer);
+        if (map_grid.at((int)checkX, (int)player.position.y) == 0)
+            player.position.x -= moveX;
 
-        double newY = player.position.y - player.direction.y * frameMoveSpeed;
-        if (map_grid.at((int)player.position.x, (int)newY) == 0)
-        {
-            player.position.y = newY;
-        }
+        double moveY = player.direction.y * frameMoveSpeed;
+        double checkY = player.position.y - moveY + (moveY > 0 ? buffer : -buffer);
+        if (map_grid.at((int)player.position.x, (int)checkY) == 0)
+            player.position.y -= moveY;
     }
     if (isActionPressed("TurnRight"))
     {
