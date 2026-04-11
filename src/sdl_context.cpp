@@ -23,6 +23,8 @@ SDLContext::SDLContext(int width, int height)
         height
     );
 
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+
     pixelBuffer.resize(width * height, 0);
     running = true;
 }

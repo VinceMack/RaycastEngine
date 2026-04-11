@@ -8,9 +8,9 @@ Input::Input()
     bindAction("Forward", SDL_SCANCODE_UP);
     bindAction("Backward", SDL_SCANCODE_S);
     bindAction("Backward", SDL_SCANCODE_DOWN);
-    bindAction("TurnLeft", SDL_SCANCODE_A);
+    bindAction("StrafeLeft", SDL_SCANCODE_A);
+    bindAction("StrafeRight", SDL_SCANCODE_D);
     bindAction("TurnLeft", SDL_SCANCODE_LEFT);
-    bindAction("TurnRight", SDL_SCANCODE_D);
     bindAction("TurnRight", SDL_SCANCODE_RIGHT);
 }
 
@@ -37,50 +37,63 @@ void Input::handlePlayerInput(double deltaTime, Player& player, const Map& map_g
 {
     double frameMoveSpeed = player.moveSpeed * deltaTime;
     double frameRotSpeed = player.rotSpeed * deltaTime;
-    double buffer = 0.2; // the "size" of the player for collision purposes
+    double buffer = 0.2;
 
-    if (isActionPressed("Forward"))
+    int mouseX;
+    SDL_GetRelativeMouseState(&mouseX, nullptr);
+    if(mouseX != 0)
     {
-        double moveX = player.direction.x * frameMoveSpeed;
-        double checkX = player.position.x + moveX + (moveX > 0 ? buffer : -buffer);
-        if (map_grid.at((int)checkX, (int)player.position.y) == 0)
-            player.position.x += moveX;
-
-        double moveY = player.direction.y * frameMoveSpeed;
-        double checkY = player.position.y + moveY + (moveY > 0 ? buffer : -buffer);
-        if (map_grid.at((int)player.position.x, (int)checkY) == 0)
-            player.position.y += moveY;
-    }
-    if (isActionPressed("Backward"))
-    {
-        double moveX = player.direction.x * frameMoveSpeed;
-        double checkX = player.position.x - moveX + (moveX > 0 ? buffer : -buffer);
-        if (map_grid.at((int)checkX, (int)player.position.y) == 0)
-            player.position.x -= moveX;
-
-        double moveY = player.direction.y * frameMoveSpeed;
-        double checkY = player.position.y - moveY + (moveY > 0 ? buffer : -buffer);
-        if (map_grid.at((int)player.position.x, (int)checkY) == 0)
-            player.position.y -= moveY;
-    }
-    if (isActionPressed("TurnRight"))
-    {
+        double rotAmount = mouseX * player.mouseSensitivity * deltaTime;
         double oldDirX = player.direction.x;
-        player.direction.x = player.direction.x * cos(frameRotSpeed) - player.direction.y * sin(frameRotSpeed);
-        player.direction.y = oldDirX * sin(frameRotSpeed) + player.direction.y * cos(frameRotSpeed);
+        player.direction.x = player.direction.x * cos(rotAmount) - player.direction.y * sin(rotAmount);
+        player.direction.y = oldDirX * sin(rotAmount) + player.direction.y * cos(rotAmount);
 
         oldDirX = player.plane.x;
-        player.plane.x = player.plane.x * cos(frameRotSpeed) - player.plane.y * sin(frameRotSpeed);
-        player.plane.y = oldDirX * sin(frameRotSpeed) + player.plane.y * cos(frameRotSpeed);
+        player.plane.x = player.plane.x * cos(rotAmount) - player.plane.y * sin(rotAmount);
+        player.plane.y = oldDirX * sin(rotAmount) + player.plane.y * cos(rotAmount);
     }
-    if (isActionPressed("TurnLeft"))
+    if (isActionPressed("TurnRight") || isActionPressed("TurnLeft"))
     {
+        double rotDir = isActionPressed("TurnRight") ? 1.0 : -1.0;
+        double rotAmount = rotDir * frameRotSpeed;
         double oldDirX = player.direction.x;
-        player.direction.x = player.direction.x * cos(-frameRotSpeed) - player.direction.y * sin(-frameRotSpeed);
-        player.direction.y = oldDirX * sin(-frameRotSpeed) + player.direction.y * cos(-frameRotSpeed);
+        player.direction.x = player.direction.x * cos(rotAmount) - player.direction.y * sin(rotAmount);
+        player.direction.y = oldDirX * sin(rotAmount) + player.direction.y * cos(rotAmount);
 
         oldDirX = player.plane.x;
-        player.plane.x = player.plane.x * cos(-frameRotSpeed) - player.plane.y * sin(-frameRotSpeed);
-        player.plane.y = oldDirX * sin(-frameRotSpeed) + player.plane.y * cos(-frameRotSpeed);
+        player.plane.x = player.plane.x * cos(rotAmount) - player.plane.y * sin(rotAmount);
+        player.plane.y = oldDirX * sin(rotAmount) + player.plane.y * cos(rotAmount);
+    }
+
+    double moveFwd = 0.0;
+    double moveStrafe = 0.0;
+
+    if (isActionPressed("Forward"))     moveFwd += 1.0;
+    if (isActionPressed("Backward"))    moveFwd -= 1.0;
+    if (isActionPressed("StrafeRight")) moveStrafe += 1.0;
+    if (isActionPressed("StrafeLeft"))  moveStrafe -= 1.0;
+
+    double inputLen = sqrt(moveFwd * moveFwd + moveStrafe * moveStrafe);
+    if (inputLen > 1.0)
+    {
+        moveFwd /= inputLen;
+        moveStrafe /= inputLen;
+    }
+
+    double velocityX = (player.direction.x * moveFwd + player.plane.x * moveStrafe) * frameMoveSpeed;
+    double velocityY = (player.direction.y * moveFwd + player.plane.y * moveStrafe) * frameMoveSpeed;
+
+    if (velocityX != 0)
+    {
+        double checkX = player.position.x + velocityX + (velocityX > 0 ? buffer : -buffer);
+        if (map_grid.at((int)checkX, (int)player.position.y) == 0)
+            player.position.x += velocityX;
+    }
+
+    if (velocityY != 0)
+    {
+        double checkY = player.position.y + velocityY + (velocityY > 0 ? buffer : -buffer);
+        if (map_grid.at((int)player.position.x, (int)checkY) == 0)
+            player.position.y += velocityY;
     }
 }

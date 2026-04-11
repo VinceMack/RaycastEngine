@@ -21,14 +21,15 @@ struct Player
     Vector2 plane;
     double moveSpeed;
     double rotSpeed;
+    double mouseSensitivity;
 
-    Player(Vector2 pos, Vector2 dir, Vector2 planeVec, double rotationSpeed, double movementSpeed)
-        : position(pos), direction(dir), plane(planeVec), moveSpeed(movementSpeed), rotSpeed(rotationSpeed)
+    Player(Vector2 pos, Vector2 dir, Vector2 planeVec, double rotationSpeed, double movementSpeed, double mouseSens)
+        : position(pos), direction(dir), plane(planeVec), moveSpeed(movementSpeed), rotSpeed(rotationSpeed), mouseSensitivity(mouseSens)
     {
     }
 
     Player()
-        : position({22.0, 12.0}), direction({0.0, -1.0}), plane({0.66, 0.0}), moveSpeed(5), rotSpeed(3)
+        : position({22.0, 12.0}), direction({0.0, -1.0}), plane({0.66, 0.0}), moveSpeed(5), rotSpeed(3), mouseSensitivity(1)
     {
     }
 };
