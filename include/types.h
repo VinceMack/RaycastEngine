@@ -2,6 +2,9 @@
 
 #include <cstdint>
 #include <vector>
+#include <SDL2/SDL_image.h>
+#include <string>
+#include <stdexcept>
 
 struct Vector2
 {
@@ -12,6 +15,13 @@ struct Vector2
     Vector2 operator-(const Vector2& other) const { return {x - other.x, y - other.y}; }
     void operator+=(const Vector2& other) { x += other.x; y += other.y; }
     void operator-=(const Vector2& other) { x -= other.x; y -= other.y; }
+};
+
+struct Sprite
+{
+    Vector2 position;
+    int textureIndex;
+    double dist;
 };
 
 struct Player
@@ -62,6 +72,27 @@ struct Texture
     const uint32_t& at(int x, int y) const
     {
         return pixels[x * height + y];
+    }
+
+    void loadFromFile(const std::string& path)
+    {
+        SDL_Surface* surface = IMG_Load(path.c_str());
+        if (!surface)
+        {
+            throw std::runtime_error("Failed to load texture: " + path);
+        }
+
+        width = surface->w;
+        height = surface->h;
+        pixels.resize(width * height);
+
+        uint32_t* srcPixels = (uint32_t*)surface->pixels;
+        for (int i = 0; i < width * height; i++)
+        {
+            pixels[i] = srcPixels[i];
+        }
+
+        SDL_FreeSurface(surface);
     }
 };
 

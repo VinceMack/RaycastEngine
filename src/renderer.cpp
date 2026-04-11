@@ -13,6 +13,7 @@ void Renderer::render(const Scene& scene)
 {
     renderFloorAndCeiling(scene);
     renderWalls(scene);
+    renderSprites(scene);
 
     SDL_UpdateTexture(sdl.texture, nullptr, sdl.pixelBuffer.data(), screen_width * sizeof(uint32_t));
     SDL_RenderClear(sdl.renderer);
@@ -207,6 +208,71 @@ void Renderer::renderWalls(const Scene& scene)
 
             *pixelPtr = (0xFF << 24) | (r << 16) | (g << 8) | b;
             pixelPtr += screen_width;
+        }
+    }
+}
+
+void Renderer::renderSprites(const Scene& scene)
+{
+    const Player& player = scene.player;
+    std::vector<Sprite> sprites = scene.entities;
+
+    // 1. Calculate distance for each sprite
+    for (auto& s : sprites) {
+        s.dist = ((player.position.x - s.position.x) * (player.position.x - s.position.x) + 
+                (player.position.y - s.position.y) * (player.position.y - s.position.y));
+    }
+
+    // 2. Sort sprites: Farthest to Nearest (Painter's Algorithm)
+    std::sort(sprites.begin(), sprites.end(), [](const Sprite& a, const Sprite& b) {
+        return a.dist > b.dist;
+    });
+
+    // 3. Project and Draw
+    for (const auto& s : sprites) {
+        // Translate sprite position relative to player
+        double spriteX = s.position.x - player.position.x;
+        double spriteY = s.position.y - player.position.y;
+
+        // Transform with the inverse camera matrix
+        // invDet is required for matrix multiplication
+        double invDet = 1.0 / (player.plane.x * player.direction.y - player.direction.x * player.plane.y);
+
+        double transformX = invDet * (player.direction.y * spriteX - player.direction.x * spriteY);
+        double transformY = invDet * (-player.plane.y * spriteX + player.plane.x * spriteY); // Depth
+
+        // Determine screen x-coordinate
+        int spriteScreenX = int((screen_width / 2) * (1 + transformX / transformY));
+
+        // Calculate height and width of the sprite on screen
+        int spriteHeight = std::abs(int(screen_height / transformY));
+        int spriteWidth = std::abs(int(screen_height / transformY));
+
+        // Calculate drawing boundaries
+        int drawStartY = std::max(0, -spriteHeight / 2 + screen_height / 2);
+        int drawEndY = std::min(screen_height - 1, spriteHeight / 2 + screen_height / 2);
+        int drawStartX = std::max(0, -spriteWidth / 2 + spriteScreenX);
+        int drawEndX = std::min(screen_width - 1, spriteWidth / 2 + spriteScreenX);
+
+        const Texture& tex = scene.textures[s.textureIndex];
+
+        // Draw the sprite vertical stripe by vertical stripe
+        for (int stripe = drawStartX; stripe < drawEndX; stripe++) {
+            int texX = int(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * tex.width / spriteWidth) / 256;
+
+            // Check if:
+            // 1. It's in front of the camera (transformY > 0)
+            // 2. It's not obscured by a wall (transformY < depthBuffer[stripe])
+            if (transformY > 0 && transformY < depthBuffer[stripe]) {
+                for (int y = drawStartY; y < drawEndY; y++) {
+                    int d = y * 256 - screen_height * 128 + spriteHeight * 128;
+                    int texY = ((d * tex.height) / spriteHeight) / 256;
+
+                    uint32_t color = tex.at(texX, texY);
+                    uint8_t alpha = (color >> 24) & 0xFF;
+                    if(alpha > 0) sdl.pixelBuffer[y * screen_width + stripe] = color;
+                }
+            }
         }
     }
 }

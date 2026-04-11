@@ -7,9 +7,11 @@
 
 # Except the SDL2.dll file
 !SDL2.dll
+!SDL2_image.dll
 
 # Except the SDL2 folder
 !SDL2/
+!SDL2_image/
 
 # Except the include and src directories
 !include/
