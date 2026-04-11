@@ -5,6 +5,9 @@
 # Ignore .exe files
 *.exe
 
+# Except the SDL2.dll file
+!SDL2.dll
+
 # Except the SDL2 folder
 !SDL2/
 
