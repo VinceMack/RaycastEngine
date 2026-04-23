@@ -5,12 +5,6 @@ Scene::Scene() : textures(8)
     uint32_t colors[8] = { 0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00,
                            0xFFFF00FF, 0xFF00FFFF, 0xFFFFFFFF, 0xFF777777 };
 
-    // STATIC SPRITES FOR TESTING
-    entities.push_back({{18.5, 9.5}, 7, 0.0});
-    entities.push_back({{10.5, 15.5}, 7, 0.0});
-    entities.push_back({{14.5, 20.5}, 7, 0.0});
-    textures[7].loadFromFile("assets/warning.png");
-
     for (int i = 0; i < 8; i++)
     {
         if (i == 3 || i == 6)
@@ -23,7 +17,19 @@ Scene::Scene() : textures(8)
         }
     }
 
-    generateBrickTexture(textures[7], colors[7], 128, 128);
+    // Load external textures for sprite testing
+    textures[7].loadFromFile("assets/warning.png");
+
+    // STATIC SPRITES FOR TESTING
+    spawnTestSprites();
+}
+
+void Scene::spawnTestSprites()
+{
+    // Example of spawning additional sprites in the scene
+    entities.push_back({{12.5, 10.5}, 7, 0.0});
+    entities.push_back({{16.5, 14.5}, 7, 0.0});
+    entities.push_back({{20.5, 18.5}, 7, 0.0});
 }
 
 void Scene::generateStoneSlabTexture(Texture& texture, uint32_t slabColor, int width, int height)

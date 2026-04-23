@@ -76,20 +76,31 @@ struct Texture
 
     void loadFromFile(const std::string& path)
     {
-        SDL_Surface* surface = IMG_Load(path.c_str());
-        if (!surface)
+        SDL_Surface* tempSurface = IMG_Load(path.c_str());
+        if (!tempSurface)
         {
             throw std::runtime_error("Failed to load texture: " + path);
         }
+
+        // 1. Force conversion to ARGB8888 to fix the Red/Blue color swap
+        SDL_Surface* surface = SDL_ConvertSurfaceFormat(tempSurface, SDL_PIXELFORMAT_ARGB8888, 0);
+        SDL_FreeSurface(tempSurface); // We don't need the original anymore
 
         width = surface->w;
         height = surface->h;
         pixels.resize(width * height);
 
         uint32_t* srcPixels = (uint32_t*)surface->pixels;
-        for (int i = 0; i < width * height; i++)
+
+        // 2. Convert Row-Major (file) to Column-Major (engine) to fix the 90° rotation
+        for (int y = 0; y < height; y++)
         {
-            pixels[i] = srcPixels[i];
+            for (int x = 0; x < width; x++)
+            {
+                // The file layout is [y * width + x]
+                // Your engine layout (at(x,y)) is [x * height + y]
+                this->at(x, y) = srcPixels[y * width + x];
+            }
         }
 
         SDL_FreeSurface(surface);

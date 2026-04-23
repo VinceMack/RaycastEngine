@@ -18,4 +18,5 @@ public:
 private:
     void generateStoneSlabTexture(Texture& texture, uint32_t slabColor, int width, int height);
     void generateBrickTexture(Texture& texture, uint32_t brickColor, int width, int height);
+    void spawnTestSprites();
 };

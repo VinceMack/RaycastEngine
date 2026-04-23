@@ -217,60 +217,67 @@ void Renderer::renderSprites(const Scene& scene)
     const Player& player = scene.player;
     std::vector<Sprite> sprites = scene.entities;
 
-    // 1. Calculate distance for each sprite
     for (auto& s : sprites) {
         s.dist = ((player.position.x - s.position.x) * (player.position.x - s.position.x) + 
-                (player.position.y - s.position.y) * (player.position.y - s.position.y));
+                  (player.position.y - s.position.y) * (player.position.y - s.position.y));
     }
 
-    // 2. Sort sprites: Farthest to Nearest (Painter's Algorithm)
     std::sort(sprites.begin(), sprites.end(), [](const Sprite& a, const Sprite& b) {
         return a.dist > b.dist;
     });
 
-    // 3. Project and Draw
     for (const auto& s : sprites) {
-        // Translate sprite position relative to player
         double spriteX = s.position.x - player.position.x;
         double spriteY = s.position.y - player.position.y;
 
-        // Transform with the inverse camera matrix
-        // invDet is required for matrix multiplication
         double invDet = 1.0 / (player.plane.x * player.direction.y - player.direction.x * player.plane.y);
-
         double transformX = invDet * (player.direction.y * spriteX - player.direction.x * spriteY);
-        double transformY = invDet * (-player.plane.y * spriteX + player.plane.x * spriteY); // Depth
+        double transformY = invDet * (-player.plane.y * spriteX + player.plane.x * spriteY);
 
-        // Determine screen x-coordinate
+        if (transformY <= 0) continue; 
+
+        const Texture& tex = scene.textures[s.textureIndex];
+        double aspectRatio = (double)tex.width / (double)tex.height;
+
         int spriteScreenX = int((screen_width / 2) * (1 + transformX / transformY));
+        
+        double vOffset = 1.0; 
+        int spriteScreenY = int((screen_height / 2) * (1 + vOffset / transformY));
 
-        // Calculate height and width of the sprite on screen
         int spriteHeight = std::abs(int(screen_height / transformY));
-        int spriteWidth = std::abs(int(screen_height / transformY));
+        int spriteWidth = std::abs(int(spriteHeight * aspectRatio));
 
-        // Calculate drawing boundaries
-        int drawStartY = std::max(0, -spriteHeight / 2 + screen_height / 2);
-        int drawEndY = std::min(screen_height - 1, spriteHeight / 2 + screen_height / 2);
+        int drawEndY = std::min(screen_height - 1, spriteScreenY);
+        int drawStartY = std::max(0, spriteScreenY - spriteHeight);
         int drawStartX = std::max(0, -spriteWidth / 2 + spriteScreenX);
         int drawEndX = std::min(screen_width - 1, spriteWidth / 2 + spriteScreenX);
 
-        const Texture& tex = scene.textures[s.textureIndex];
+        int spriteTopY = spriteScreenY - spriteHeight;
 
-        // Draw the sprite vertical stripe by vertical stripe
+        double visibility = 1.0 / exp(transformY * 0.07);
+        visibility = std::min(1.0, std::max(0.0, visibility));
+        double invVis = 1.0 - visibility;
+        
+        double fog_component = 119.0 * invVis; 
+
         for (int stripe = drawStartX; stripe < drawEndX; stripe++) {
             int texX = int(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * tex.width / spriteWidth) / 256;
 
-            // Check if:
-            // 1. It's in front of the camera (transformY > 0)
-            // 2. It's not obscured by a wall (transformY < depthBuffer[stripe])
-            if (transformY > 0 && transformY < depthBuffer[stripe]) {
+            if (transformY < depthBuffer[stripe]) {
+                uint32_t* pixelPtr = &sdl.pixelBuffer[drawStartY * screen_width + stripe];
+                
                 for (int y = drawStartY; y < drawEndY; y++) {
-                    int d = y * 256 - screen_height * 128 + spriteHeight * 128;
-                    int texY = ((d * tex.height) / spriteHeight) / 256;
-
+                    int texY = ((y - spriteTopY) * tex.height) / spriteHeight;
                     uint32_t color = tex.at(texX, texY);
-                    uint8_t alpha = (color >> 24) & 0xFF;
-                    if(alpha > 0) sdl.pixelBuffer[y * screen_width + stripe] = color;
+
+                    if ((color >> 24) & 0xFF) { 
+                        uint8_t r = ((color >> 16) & 0xFF) * visibility + fog_component;
+                        uint8_t g = ((color >> 8) & 0xFF) * visibility + fog_component;
+                        uint8_t b = (color & 0xFF) * visibility + fog_component;
+
+                        *pixelPtr = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                    }
+                    pixelPtr += screen_width;
                 }
             }
         }
