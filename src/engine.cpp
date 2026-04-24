@@ -3,7 +3,7 @@
 #include <string>
 #include <cmath>
 
-Engine::Engine() : sdl(screen_width, screen_height), scene(), renderer(sdl), input()
+Engine::Engine() : sdl(screen_width, screen_height), assetManager(), scene(assetManager), renderer(sdl, assetManager), input()
 {
 }
 
@@ -82,7 +82,10 @@ void Engine::updateEntities(double deltaTime)
 
             if (distSq < 0.25) // 0.5 units distance pickup radius
             { 
-                scene.player.currentWeapon = WeaponType::PISTOL;
+                if (e.weaponInside != WeaponID::NONE)
+                {
+                    scene.player.currentWeapon = assetManager.getWeaponDefinition(e.weaponInside);
+                }
                 e.dist = -1.0; // Marker: mark for deletion
                 continue;      // Skip behavioral logic for this frame
             }

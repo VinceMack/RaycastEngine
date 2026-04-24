@@ -17,15 +17,26 @@ struct Vector2
     void operator-=(const Vector2& other) { x -= other.x; y -= other.y; }
 };
 
-enum class EntityType {
+enum class EntityType
+{
     STATIC,     // Doesn't move (Lamps, decorations)
     ITEM,       // Bounces and rotates (Health packs, ammo)
     ENEMY       // Pathfinds and chases player
 };
 
-enum class WeaponType {
+enum class WeaponID
+{
     NONE,
-    PISTOL
+    PISTOL,
+    SMG
+};
+
+struct WeaponDefinition
+{
+    WeaponID id;
+    std::string name;      // For UI display
+    int worldTextureIndex; // For the ITEM on the floor
+    int handTextureIndex;  // For the gun in the hand
 };
 
 struct Entity
@@ -33,6 +44,7 @@ struct Entity
     Vector2 position;
     Vector2 velocity;
     int textureIndex;
+    WeaponID weaponInside = WeaponID::NONE;
     int numFrames;
     float frameTimer;
     float frameDuration;
@@ -58,7 +70,7 @@ struct Player
     double moveSpeed;
     double rotSpeed;
     double mouseSensitivity;
-    WeaponType currentWeapon = WeaponType::NONE;
+    const WeaponDefinition* currentWeapon = nullptr;
 
     Player(Vector2 pos, Vector2 dir, Vector2 planeVec, double rotationSpeed, double movementSpeed, double mouseSens)
         : position(pos), direction(dir), plane(planeVec), moveSpeed(movementSpeed), rotSpeed(rotationSpeed), mouseSensitivity(mouseSens)

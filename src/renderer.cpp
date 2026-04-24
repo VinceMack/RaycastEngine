@@ -5,7 +5,7 @@
 
 #include <omp.h>
 
-Renderer::Renderer(SDLContext& sdl) : sdl(sdl), depthBuffer(screen_width, 0.0)
+Renderer::Renderer(SDLContext& sdl, AssetManager& assetManager) : sdl(sdl), assetManager(assetManager), depthBuffer(screen_width, 0.0)
 {
 }
 
@@ -100,8 +100,8 @@ RayHit Renderer::castRay(int x, const Player& player, const Map& map_grid)
 void Renderer::renderFloorAndCeiling(const Scene& scene)
 {
     const Player& player = scene.player;
-    const Texture& floorTexture = scene.textures[3];
-    const Texture& ceilingTexture = scene.textures[6];
+    const Texture& floorTexture = assetManager.getTexture(3);
+    const Texture& ceilingTexture = assetManager.getTexture(6);
 
     #pragma omp parallel for
     for (int y = screen_height / 2; y < screen_height; ++y)
@@ -175,7 +175,7 @@ void Renderer::renderWalls(const Scene& scene)
         if (draw_end >= screen_height) draw_end = screen_height - 1;
 
         int texNum = hit.wallType - 1;
-        const Texture& tex = scene.textures[texNum];
+        const Texture& tex = assetManager.getTexture(texNum);
 
         double wallX;
         if (hit.side == 0) wallX = player.position.y + hit.distance * hit.rayDir.y;
@@ -249,7 +249,7 @@ void Renderer::renderEntities(const Scene& scene)
         if (transformY <= 0) continue; 
 
         // Use the entity's specific frame for animation
-        const Texture& tex = scene.textures[e.textureIndex + e.currentFrame];
+        const Texture& tex = assetManager.getTexture(e.textureIndex + e.currentFrame);
         double aspectRatio = (double)tex.width / (double)tex.height;
 
         int spriteScreenX = int((screen_width / 2) * (1 + transformX / transformY));
@@ -299,10 +299,9 @@ void Renderer::renderEntities(const Scene& scene)
 
 void Renderer::renderWeapon(const Scene& scene)
 {
-    if (scene.player.currentWeapon == WeaponType::NONE) return;
+    if (!scene.player.currentWeapon) return;
 
-    // 1. Get the weapon texture (e.g., index 9)
-    const Texture& tex = scene.textures[11]; // Using the "gun_held.png" for the weapon sprite
+    const Texture& tex = assetManager.getTexture(scene.player.currentWeapon->handTextureIndex);
 
     // 2. Scale the weapon to fit the screen
     double screenScale = 2.0; 

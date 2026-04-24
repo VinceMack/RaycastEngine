@@ -1,6 +1,7 @@
 #pragma once
 
 #include "constants.h"
+#include "asset_manager.h"
 #include "input.h"
 #include "renderer.h"
 #include "scene.h"
@@ -14,6 +15,7 @@ public:
 
 private:
     SDLContext sdl;
+    AssetManager assetManager;
     Scene scene;
     Renderer renderer;
     Input input;

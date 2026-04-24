@@ -3,19 +3,21 @@
 #include <vector>
 
 #include "constants.h"
+#include "asset_manager.h"
 #include "scene.h"
 #include "sdl_context.h"
 
 class Renderer
 {
 public:
-    explicit Renderer(SDLContext& sdl);
+    Renderer(SDLContext& sdl, AssetManager& assetManager);
 
     void render(const Scene& scene);
     const std::vector<double>& getDepthBuffer() const;
 
 private:
     SDLContext& sdl;
+    AssetManager& assetManager;
     std::vector<double> depthBuffer;
 
     int wrapPow2(int value, int size) const;
