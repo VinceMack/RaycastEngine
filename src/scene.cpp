@@ -1,6 +1,6 @@
 #include "scene.h"
 
-Scene::Scene() : textures(8)
+Scene::Scene() : textures(12)
 {
     uint32_t colors[8] = { 0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00,
                            0xFFFF00FF, 0xFF00FFFF, 0xFFFFFFFF, 0xFF777777 };
@@ -19,6 +19,10 @@ Scene::Scene() : textures(8)
 
     // Load external textures for sprite testing
     textures[7].loadFromFile("assets/slime_person.png");
+    textures[8].loadFromFile("assets/sign.png");
+    textures[9].loadFromFile("assets/gun.png");
+    textures[10].loadFromFile("assets/save_disk.png");
+    textures[11].loadFromFile("assets/gun_held.png");
 
     // STATIC SPRITES FOR TESTING
     spawnTestSprites();
@@ -30,11 +34,11 @@ void Scene::spawnTestSprites()
 
     // 1. A STATIC object (Standard Warning Sign)
     // Position, TextureIndex, Type, Scale, vOffset
-    entities.emplace_back(Vector2{18.5, 9.5}, 7, EntityType::STATIC, 1.0, 1.0);
+    entities.emplace_back(Vector2{18.5, 9.5}, 8, EntityType::STATIC, 1.0, 1.0);
 
     // 2. An ITEM (Bouncing/Bobbing Sign)
     // We set scale to 0.5 and vOffset to 0.8 so it hovers slightly
-    entities.emplace_back(Vector2{15.5, 15.5}, 7, EntityType::ITEM, 0.5, 0.8);
+    entities.emplace_back(Vector2{15.5, 15.5}, 9, EntityType::ITEM, 0.5, 0.8);
 
     // 3. An ENEMY (The Chaser)
     // This one will move toward you once the updateEnemyAI logic is running

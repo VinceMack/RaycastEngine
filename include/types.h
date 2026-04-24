@@ -23,6 +23,10 @@ enum class EntityType {
     ENEMY       // Pathfinds and chases player
 };
 
+enum class WeaponType {
+    NONE,
+    PISTOL
+};
 
 struct Entity
 {
@@ -54,6 +58,7 @@ struct Player
     double moveSpeed;
     double rotSpeed;
     double mouseSensitivity;
+    WeaponType currentWeapon = WeaponType::NONE;
 
     Player(Vector2 pos, Vector2 dir, Vector2 planeVec, double rotationSpeed, double movementSpeed, double mouseSens)
         : position(pos), direction(dir), plane(planeVec), moveSpeed(movementSpeed), rotSpeed(rotationSpeed), mouseSensitivity(mouseSens)

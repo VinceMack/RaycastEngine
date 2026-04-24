@@ -23,4 +23,5 @@ private:
     void renderFloorAndCeiling(const Scene& scene);
     void renderWalls(const Scene& scene);
     void renderEntities(const Scene& scene);
+    void renderWeapon(const Scene& scene);
 };

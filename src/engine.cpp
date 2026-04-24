@@ -65,27 +65,50 @@ void Engine::updateEnemyAI(Entity& e, double deltaTime) {
     }
 }
 
+#include <algorithm> // Required for std::remove_if
+
 void Engine::updateEntities(double deltaTime)
 {
+    // 1. Process Logic and Mark for Deletion
     for (auto& e : scene.entities)
     {
         e.totalTime += deltaTime;
 
+        // Pickup Logic
+        if (e.type == EntityType::ITEM) 
+        {
+            Vector2 distVec = e.position - scene.player.position;
+            double distSq = distVec.x * distVec.x + distVec.y * distVec.y;
+
+            if (distSq < 0.25) // 0.5 units distance pickup radius
+            { 
+                scene.player.currentWeapon = WeaponType::PISTOL;
+                e.dist = -1.0; // Marker: mark for deletion
+                continue;      // Skip behavioral logic for this frame
+            }
+        }
+
+        // Behavior Logic
         switch (e.type)
         {
             case EntityType::ITEM:
-                // Visual "Bobbing" effect using a Sine wave
-                // Modulate vOffset around 1.0 (the floor)
                 e.vOffset = 0.8 + std::sin(e.totalTime * 3.0) * 0.1;
                 break;
 
             case EntityType::ENEMY:
-                updateEnemyAI(e, deltaTime); // simple testing pathfinding
+                updateEnemyAI(e, deltaTime); 
                 break;
 
-            case EntityType::STATIC:
             default:
                 break;
         }
     }
+
+    // 2. Physical Deletion (Erase-Remove Idiom)
+    // This moves all "marked" entities to the end and shrinks the vector.
+    scene.entities.erase(
+        std::remove_if(scene.entities.begin(), scene.entities.end(),
+            [](const Entity& e) { return e.dist < 0.0; }), 
+        scene.entities.end()
+    );
 }

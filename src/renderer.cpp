@@ -11,10 +11,18 @@ Renderer::Renderer(SDLContext& sdl) : sdl(sdl), depthBuffer(screen_width, 0.0)
 
 void Renderer::render(const Scene& scene)
 {
+    // 1. Prepare for the new frame
+    std::fill(depthBuffer.begin(), depthBuffer.end(), INFINITY);
+
+    // 2. Draw the 3D world (Back to Front)
     renderFloorAndCeiling(scene);
     renderWalls(scene);
-    renderEntities(scene);
+    renderEntities(scene); // These use the depthBuffer to hide behind walls
 
+    // 3. Draw the 2D UI / Overlay (Always on top)
+    renderWeapon(scene); // This IGNORES the depthBuffer
+
+    // 4. Final output to the window
     SDL_UpdateTexture(sdl.texture, nullptr, sdl.pixelBuffer.data(), screen_width * sizeof(uint32_t));
     SDL_RenderClear(sdl.renderer);
     SDL_RenderCopy(sdl.renderer, sdl.texture, nullptr, nullptr);
@@ -284,6 +292,36 @@ void Renderer::renderEntities(const Scene& scene)
                     }
                     pixelPtr += screen_width;
                 }
+            }
+        }
+    }
+}
+
+void Renderer::renderWeapon(const Scene& scene)
+{
+    if (scene.player.currentWeapon == WeaponType::NONE) return;
+
+    // 1. Get the weapon texture (e.g., index 9)
+    const Texture& tex = scene.textures[11]; // Using the "gun_held.png" for the weapon sprite
+
+    // 2. Scale the weapon to fit the screen
+    double screenScale = 2.0; 
+    int drawW = tex.width * screenScale;
+    int drawH = tex.height * screenScale;
+
+    // 3. Position: bottom right of the screen
+    int startX = screen_width - drawW;
+    int startY = screen_height - drawH;
+
+    // 4. Draw directly to pixelBuffer (ignoring depthBuffer!)
+    for (int x = 0; x < drawW; x++) {
+        for (int y = 0; y < drawH; y++) {
+            int texX = (x * tex.width) / drawW;
+            int texY = (y * tex.height) / drawH;
+            uint32_t color = tex.at(texX, texY);
+
+            if ((color >> 24) & 0xFF) { // Alpha check
+                sdl.pixelBuffer[(startY + y) * screen_width + (startX + x)] = color;
             }
         }
     }
