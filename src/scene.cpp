@@ -18,7 +18,7 @@ Scene::Scene() : textures(8)
     }
 
     // Load external textures for sprite testing
-    textures[7].loadFromFile("assets/warning.png");
+    textures[7].loadFromFile("assets/slime_person.png");
 
     // STATIC SPRITES FOR TESTING
     spawnTestSprites();
@@ -27,9 +27,10 @@ Scene::Scene() : textures(8)
 void Scene::spawnTestSprites()
 {
     // Example of spawning additional sprites in the scene
-    entities.push_back({{12.5, 10.5}, 7, 0.0});
-    entities.push_back({{16.5, 14.5}, 7, 0.0});
-    entities.push_back({{20.5, 18.5}, 7, 0.0});
+    entities.push_back({{9.5, 10.5}, 7, 0.0, 1.0});
+    entities.push_back({{12.5, 10.5}, 7, 0.0, 1.0});
+    entities.push_back({{16.5, 14.5}, 7, 0.0, 0.75});
+    entities.push_back({{20.5, 18.5}, 7, 0.0, 0.5});
 }
 
 void Scene::generateStoneSlabTexture(Texture& texture, uint32_t slabColor, int width, int height)

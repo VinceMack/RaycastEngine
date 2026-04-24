@@ -22,6 +22,7 @@ struct Sprite
     Vector2 position;
     int textureIndex;
     double dist;
+    double scale;
 };
 
 struct Player

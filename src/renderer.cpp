@@ -244,7 +244,7 @@ void Renderer::renderSprites(const Scene& scene)
         double vOffset = 1.0; 
         int spriteScreenY = int((screen_height / 2) * (1 + vOffset / transformY));
 
-        int spriteHeight = std::abs(int(screen_height / transformY));
+        int spriteHeight = std::abs(int(screen_height / transformY * s.scale));
         int spriteWidth = std::abs(int(spriteHeight * aspectRatio));
 
         int drawEndY = std::min(screen_height - 1, spriteScreenY);
