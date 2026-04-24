@@ -250,6 +250,11 @@ void Renderer::renderEntities(const Scene& scene)
 
         // Use the entity's specific frame for animation
         const Texture& tex = assetManager.getTexture(e.textureIndex + e.currentFrame);
+        if (tex.width <= 0 || tex.height <= 0)
+        {
+            continue;
+        }
+
         double aspectRatio = (double)tex.width / (double)tex.height;
 
         int spriteScreenX = int((screen_width / 2) * (1 + transformX / transformY));
@@ -260,12 +265,21 @@ void Renderer::renderEntities(const Scene& scene)
         // Use the entity's specific scale
         int spriteHeight = std::abs(int(screen_height / transformY * e.scale));
         int spriteWidth = std::abs(int(spriteHeight * aspectRatio));
+        if (spriteHeight <= 0 || spriteWidth <= 0)
+        {
+            continue;
+        }
 
-        int drawEndY = std::min(screen_height - 1, spriteScreenY);
+        int drawEndY = std::min(screen_height, spriteScreenY);
         int drawStartY = std::max(0, spriteScreenY - spriteHeight);
         int drawStartX = std::max(0, -spriteWidth / 2 + spriteScreenX);
-        int drawEndX = std::min(screen_width - 1, spriteWidth / 2 + spriteScreenX);
+        int drawEndX = std::min(screen_width, spriteWidth / 2 + spriteScreenX);
+        if (drawStartX >= drawEndX || drawStartY >= drawEndY)
+        {
+            continue;
+        }
 
+        int spriteLeftX = -spriteWidth / 2 + spriteScreenX;
         int spriteTopY = spriteScreenY - spriteHeight;
 
         // Fog calculation (same as before)
@@ -275,13 +289,15 @@ void Renderer::renderEntities(const Scene& scene)
         double fog_component = 119.0 * invVis; 
 
         for (int stripe = drawStartX; stripe < drawEndX; stripe++) {
-            int texX = int(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * tex.width / spriteWidth) / 256;
+            int texX = int(256 * (stripe - spriteLeftX) * tex.width / spriteWidth) / 256;
+            texX = std::clamp(texX, 0, tex.width - 1);
 
             if (transformY < depthBuffer[stripe]) {
                 uint32_t* pixelPtr = &sdl.pixelBuffer[drawStartY * screen_width + stripe];
                 
                 for (int y = drawStartY; y < drawEndY; y++) {
                     int texY = ((y - spriteTopY) * tex.height) / spriteHeight;
+                    texY = std::clamp(texY, 0, tex.height - 1);
                     uint32_t color = tex.at(texX, texY);
 
                     if ((color >> 24) & 0xFF) { 
@@ -302,25 +318,48 @@ void Renderer::renderWeapon(const Scene& scene)
     if (!scene.player.currentWeapon) return;
 
     const Texture& tex = assetManager.getTexture(scene.player.currentWeapon->handTextureIndex);
+    if (tex.width <= 0 || tex.height <= 0)
+    {
+        return;
+    }
 
     // 2. Scale the weapon to fit the screen
     double screenScale = 2.0; 
     int drawW = tex.width * screenScale;
     int drawH = tex.height * screenScale;
+    if (drawW <= 0 || drawH <= 0)
+    {
+        return;
+    }
 
     // 3. Position: bottom right of the screen
     int startX = screen_width - drawW;
     int startY = screen_height - drawH;
 
+    int clipStartX = std::max(0, startX);
+    int clipStartY = std::max(0, startY);
+    int clipEndX = std::min(screen_width, startX + drawW);
+    int clipEndY = std::min(screen_height, startY + drawH);
+
+    if (clipStartX >= clipEndX || clipStartY >= clipEndY)
+    {
+        return;
+    }
+
     // 4. Draw directly to pixelBuffer (ignoring depthBuffer!)
-    for (int x = 0; x < drawW; x++) {
-        for (int y = 0; y < drawH; y++) {
-            int texX = (x * tex.width) / drawW;
-            int texY = (y * tex.height) / drawH;
+    for (int x = clipStartX; x < clipEndX; x++) {
+        for (int y = clipStartY; y < clipEndY; y++) {
+            int localX = x - startX;
+            int localY = y - startY;
+
+            int texX = (localX * tex.width) / drawW;
+            int texY = (localY * tex.height) / drawH;
+            texX = std::clamp(texX, 0, tex.width - 1);
+            texY = std::clamp(texY, 0, tex.height - 1);
             uint32_t color = tex.at(texX, texY);
 
             if ((color >> 24) & 0xFF) { // Alpha check
-                sdl.pixelBuffer[(startY + y) * screen_width + (startX + x)] = color;
+                sdl.pixelBuffer[y * screen_width + x] = color;
             }
         }
     }
