@@ -17,12 +17,33 @@ struct Vector2
     void operator-=(const Vector2& other) { x -= other.x; y -= other.y; }
 };
 
-struct Sprite
+enum class EntityType {
+    STATIC,     // Doesn't move (Lamps, decorations)
+    ITEM,       // Bounces and rotates (Health packs, ammo)
+    ENEMY       // Pathfinds and chases player
+};
+
+
+struct Entity
 {
     Vector2 position;
+    Vector2 velocity;
     int textureIndex;
-    double dist;
+    int numFrames;
+    float frameTimer;
+    float frameDuration;
+    int currentFrame;
     double scale;
+    double vOffset;
+    double dist;
+    EntityType type;
+    double totalTime; // accumulated time for math effects
+
+    // Updated Constructor
+    Entity(Vector2 pos, int texIdx, EntityType t = EntityType::STATIC, double s = 1.0, double vOff = 1.0)
+        : position(pos), velocity({0,0}), textureIndex(texIdx), type(t), 
+          scale(s), vOffset(vOff), numFrames(1), currentFrame(0), frameTimer(0), dist(0) 
+    {}
 };
 
 struct Player

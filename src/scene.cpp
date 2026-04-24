@@ -26,11 +26,19 @@ Scene::Scene() : textures(8)
 
 void Scene::spawnTestSprites()
 {
-    // Example of spawning additional sprites in the scene
-    entities.push_back({{9.5, 10.5}, 7, 0.0, 1.0});
-    entities.push_back({{12.5, 10.5}, 7, 0.0, 1.0});
-    entities.push_back({{16.5, 14.5}, 7, 0.0, 0.75});
-    entities.push_back({{20.5, 18.5}, 7, 0.0, 0.5});
+    entities.clear();
+
+    // 1. A STATIC object (Standard Warning Sign)
+    // Position, TextureIndex, Type, Scale, vOffset
+    entities.emplace_back(Vector2{18.5, 9.5}, 7, EntityType::STATIC, 1.0, 1.0);
+
+    // 2. An ITEM (Bouncing/Bobbing Sign)
+    // We set scale to 0.5 and vOffset to 0.8 so it hovers slightly
+    entities.emplace_back(Vector2{15.5, 15.5}, 7, EntityType::ITEM, 0.5, 0.8);
+
+    // 3. An ENEMY (The Chaser)
+    // This one will move toward you once the updateEnemyAI logic is running
+    entities.emplace_back(Vector2{10.5, 10.5}, 7, EntityType::ENEMY, 1.0, 1.0);
 }
 
 void Scene::generateStoneSlabTexture(Texture& texture, uint32_t slabColor, int width, int height)

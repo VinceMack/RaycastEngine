@@ -13,7 +13,7 @@ void Renderer::render(const Scene& scene)
 {
     renderFloorAndCeiling(scene);
     renderWalls(scene);
-    renderSprites(scene);
+    renderEntities(scene);
 
     SDL_UpdateTexture(sdl.texture, nullptr, sdl.pixelBuffer.data(), screen_width * sizeof(uint32_t));
     SDL_RenderClear(sdl.renderer);
@@ -212,23 +212,27 @@ void Renderer::renderWalls(const Scene& scene)
     }
 }
 
-void Renderer::renderSprites(const Scene& scene)
+void Renderer::renderEntities(const Scene& scene)
 {
     const Player& player = scene.player;
-    std::vector<Sprite> sprites = scene.entities;
+    // Work on a copy for sorting, or sort the scene entities directly if preferred
+    std::vector<Entity> entities = scene.entities;
 
-    for (auto& s : sprites) {
-        s.dist = ((player.position.x - s.position.x) * (player.position.x - s.position.x) + 
-                  (player.position.y - s.position.y) * (player.position.y - s.position.y));
+    // 1. Calculate squared distance for each entity (faster than sqrt)
+    for (auto& e : entities) {
+        e.dist = ((player.position.x - e.position.x) * (player.position.x - e.position.x) + 
+                  (player.position.y - e.position.y) * (player.position.y - e.position.y));
     }
 
-    std::sort(sprites.begin(), sprites.end(), [](const Sprite& a, const Sprite& b) {
+    // 2. Sort entities: Farthest to Nearest (Painter's Algorithm)
+    std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
         return a.dist > b.dist;
     });
 
-    for (const auto& s : sprites) {
-        double spriteX = s.position.x - player.position.x;
-        double spriteY = s.position.y - player.position.y;
+    // 3. Project and Draw
+    for (const auto& e : entities) {
+        double spriteX = e.position.x - player.position.x;
+        double spriteY = e.position.y - player.position.y;
 
         double invDet = 1.0 / (player.plane.x * player.direction.y - player.direction.x * player.plane.y);
         double transformX = invDet * (player.direction.y * spriteX - player.direction.x * spriteY);
@@ -236,15 +240,17 @@ void Renderer::renderSprites(const Scene& scene)
 
         if (transformY <= 0) continue; 
 
-        const Texture& tex = scene.textures[s.textureIndex];
+        // Use the entity's specific frame for animation
+        const Texture& tex = scene.textures[e.textureIndex + e.currentFrame];
         double aspectRatio = (double)tex.width / (double)tex.height;
 
         int spriteScreenX = int((screen_width / 2) * (1 + transformX / transformY));
         
-        double vOffset = 1.0; 
-        int spriteScreenY = int((screen_height / 2) * (1 + vOffset / transformY));
+        // Use the entity's specific vOffset (1.0 = floor, 0.0 = horizon)
+        int spriteScreenY = int((screen_height / 2) * (1 + e.vOffset / transformY));
 
-        int spriteHeight = std::abs(int(screen_height / transformY * s.scale));
+        // Use the entity's specific scale
+        int spriteHeight = std::abs(int(screen_height / transformY * e.scale));
         int spriteWidth = std::abs(int(spriteHeight * aspectRatio));
 
         int drawEndY = std::min(screen_height - 1, spriteScreenY);
@@ -254,10 +260,10 @@ void Renderer::renderSprites(const Scene& scene)
 
         int spriteTopY = spriteScreenY - spriteHeight;
 
+        // Fog calculation (same as before)
         double visibility = 1.0 / exp(transformY * 0.07);
         visibility = std::min(1.0, std::max(0.0, visibility));
         double invVis = 1.0 - visibility;
-        
         double fog_component = 119.0 * invVis; 
 
         for (int stripe = drawStartX; stripe < drawEndX; stripe++) {
@@ -274,7 +280,6 @@ void Renderer::renderSprites(const Scene& scene)
                         uint8_t r = ((color >> 16) & 0xFF) * visibility + fog_component;
                         uint8_t g = ((color >> 8) & 0xFF) * visibility + fog_component;
                         uint8_t b = (color & 0xFF) * visibility + fog_component;
-
                         *pixelPtr = (0xFF << 24) | (r << 16) | (g << 8) | b;
                     }
                     pixelPtr += screen_width;

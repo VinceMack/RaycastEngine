@@ -13,7 +13,7 @@ public:
     Player player;
     Map map_grid;
     std::vector<Texture> textures;
-    std::vector<Sprite> entities;
+    std::vector<Entity> entities;
 
 private:
     void generateStoneSlabTexture(Texture& texture, uint32_t slabColor, int width, int height);

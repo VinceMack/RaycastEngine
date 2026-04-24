@@ -21,4 +21,6 @@ private:
     void processEvents(SDL_Event& event);
     void update(double deltaTime);
     void updateWindowTitle(double deltaTime);
+    void updateEntities(double deltaTime);
+    void updateEnemyAI(Entity& e, double deltaTime);
 };

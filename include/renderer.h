@@ -22,5 +22,5 @@ private:
     RayHit castRay(int x, const Player& player, const Map& map_grid);
     void renderFloorAndCeiling(const Scene& scene);
     void renderWalls(const Scene& scene);
-    void renderSprites(const Scene& scene);
+    void renderEntities(const Scene& scene);
 };
