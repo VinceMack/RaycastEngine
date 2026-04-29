@@ -2,8 +2,21 @@
 # Ignore all files
 *
 
-# Ignore .exe files
-*.exe
+# Except assets directory
+!assets/
+
+# Except the assets directory and its contents
+!assets/**
+
+# Except include and src directories and their contents
+!include/
+!src/
+
+# Except .h and .cpp files in include and src directories
+!include/**/*.h
+!include/**/*.cpp
+!src/**/*.h
+!src/**/*.cpp
 
 # Except the SDL2.dll file
 !SDL2.dll
