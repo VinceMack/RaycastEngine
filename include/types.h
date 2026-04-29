@@ -137,7 +137,7 @@ struct Texture
             for (int x = 0; x < width; x++)
             {
                 // The file layout is [y * width + x]
-                // Your engine layout (at(x,y)) is [x * height + y]
+                // Engine layout (at(x,y)) is [x * height + y]
                 this->at(x, y) = srcPixels[y * width + x];
             }
         }

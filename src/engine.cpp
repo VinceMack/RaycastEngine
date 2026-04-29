@@ -49,7 +49,8 @@ void Engine::updateWindowTitle(double deltaTime)
     SDL_SetWindowTitle(sdl.window, ("Raycaster - Frame Time: " + std::to_string(msPerFrame) + "ms").c_str());
 }
 
-void Engine::updateEnemyAI(Entity& e, double deltaTime) {
+void Engine::updateEnemyAI(Entity& e, double deltaTime)
+{
     Vector2 dirToPlayer = scene.player.position - e.position;
     double distance = std::sqrt(dirToPlayer.x * dirToPlayer.x + dirToPlayer.y * dirToPlayer.y);
 

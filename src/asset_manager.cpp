@@ -35,22 +35,26 @@ namespace
     }
 }
 
-int AssetManager::loadTexture(const std::string& path) {
+int AssetManager::loadTexture(const std::string& path)
+{
     Texture tex;
-    tex.loadFromFile(path); // Uses the logic you already implemented
+    tex.loadFromFile(path);
     textures.push_back(std::move(tex));
     return (int)textures.size() - 1;
 }
 
-const Texture& AssetManager::getTexture(int index) const {
+const Texture& AssetManager::getTexture(int index) const
+{
     return textures.at(index);
 }
 
-void AssetManager::registerWeapon(WeaponID id, const WeaponDefinition& def) {
+void AssetManager::registerWeapon(WeaponID id, const WeaponDefinition& def)
+{
     weaponRegistry[id] = def;
 }
 
-const WeaponDefinition* AssetManager::getWeaponDefinition(WeaponID id) const {
+const WeaponDefinition* AssetManager::getWeaponDefinition(WeaponID id) const
+{
     auto it = weaponRegistry.find(id);
     if (it != weaponRegistry.end()) return &it->second;
     return nullptr;
@@ -97,14 +101,16 @@ AssetManager::AssetManager()
     textures.push_back(Texture());
     textures.back().loadFromFile("assets/smg_held.png");
 
-    registerWeapon(WeaponID::PISTOL, WeaponDefinition{
+    registerWeapon(WeaponID::PISTOL, WeaponDefinition
+    {
         WeaponID::PISTOL,
         "Pistol",
         9,
         11
     });
 
-    registerWeapon(WeaponID::SMG, WeaponDefinition{
+    registerWeapon(WeaponID::SMG, WeaponDefinition
+    {
         WeaponID::SMG,
         "SMG",
         12,

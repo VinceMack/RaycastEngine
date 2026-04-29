@@ -227,13 +227,15 @@ void Renderer::renderEntities(const Scene& scene)
     std::vector<Entity> entities = scene.entities;
 
     // 1. Calculate squared distance for each entity (faster than sqrt)
-    for (auto& e : entities) {
+    for (auto& e : entities)
+    {
         e.dist = ((player.position.x - e.position.x) * (player.position.x - e.position.x) + 
                   (player.position.y - e.position.y) * (player.position.y - e.position.y));
     }
 
     // 2. Sort entities: Farthest to Nearest (Painter's Algorithm)
-    std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
+    std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b)
+    {
         return a.dist > b.dist;
     });
 
@@ -250,10 +252,7 @@ void Renderer::renderEntities(const Scene& scene)
 
         // Use the entity's specific frame for animation
         const Texture& tex = assetManager.getTexture(e.textureIndex + e.currentFrame);
-        if (tex.width <= 0 || tex.height <= 0)
-        {
-            continue;
-        }
+        if (tex.width <= 0 || tex.height <= 0) continue;
 
         double aspectRatio = (double)tex.width / (double)tex.height;
 
@@ -265,19 +264,13 @@ void Renderer::renderEntities(const Scene& scene)
         // Use the entity's specific scale
         int spriteHeight = std::abs(int(screen_height / transformY * e.scale));
         int spriteWidth = std::abs(int(spriteHeight * aspectRatio));
-        if (spriteHeight <= 0 || spriteWidth <= 0)
-        {
-            continue;
-        }
+        if (spriteHeight <= 0 || spriteWidth <= 0) continue;
 
         int drawEndY = std::min(screen_height, spriteScreenY);
         int drawStartY = std::max(0, spriteScreenY - spriteHeight);
         int drawStartX = std::max(0, -spriteWidth / 2 + spriteScreenX);
         int drawEndX = std::min(screen_width, spriteWidth / 2 + spriteScreenX);
-        if (drawStartX >= drawEndX || drawStartY >= drawEndY)
-        {
-            continue;
-        }
+        if (drawStartX >= drawEndX || drawStartY >= drawEndY) continue;
 
         int spriteLeftX = -spriteWidth / 2 + spriteScreenX;
         int spriteTopY = spriteScreenY - spriteHeight;
@@ -288,19 +281,23 @@ void Renderer::renderEntities(const Scene& scene)
         double invVis = 1.0 - visibility;
         double fog_component = 119.0 * invVis; 
 
-        for (int stripe = drawStartX; stripe < drawEndX; stripe++) {
+        for (int stripe = drawStartX; stripe < drawEndX; stripe++)
+        {
             int texX = int(256 * (stripe - spriteLeftX) * tex.width / spriteWidth) / 256;
             texX = std::clamp(texX, 0, tex.width - 1);
 
-            if (transformY < depthBuffer[stripe]) {
+            if (transformY < depthBuffer[stripe])
+            {
                 uint32_t* pixelPtr = &sdl.pixelBuffer[drawStartY * screen_width + stripe];
                 
-                for (int y = drawStartY; y < drawEndY; y++) {
+                for (int y = drawStartY; y < drawEndY; y++)
+                {
                     int texY = ((y - spriteTopY) * tex.height) / spriteHeight;
                     texY = std::clamp(texY, 0, tex.height - 1);
                     uint32_t color = tex.at(texX, texY);
 
-                    if ((color >> 24) & 0xFF) { 
+                    if ((color >> 24) & 0xFF)
+                    { 
                         uint8_t r = ((color >> 16) & 0xFF) * visibility + fog_component;
                         uint8_t g = ((color >> 8) & 0xFF) * visibility + fog_component;
                         uint8_t b = (color & 0xFF) * visibility + fog_component;
@@ -318,19 +315,13 @@ void Renderer::renderWeapon(const Scene& scene)
     if (!scene.player.currentWeapon) return;
 
     const Texture& tex = assetManager.getTexture(scene.player.currentWeapon->handTextureIndex);
-    if (tex.width <= 0 || tex.height <= 0)
-    {
-        return;
-    }
+    if (tex.width <= 0 || tex.height <= 0) return;
 
     // 2. Scale the weapon to fit the screen
     double screenScale = 2.0; 
     int drawW = tex.width * screenScale;
     int drawH = tex.height * screenScale;
-    if (drawW <= 0 || drawH <= 0)
-    {
-        return;
-    }
+    if (drawW <= 0 || drawH <= 0) return;
 
     // 3. Position: bottom right of the screen
     int startX = screen_width - drawW;
@@ -341,14 +332,13 @@ void Renderer::renderWeapon(const Scene& scene)
     int clipEndX = std::min(screen_width, startX + drawW);
     int clipEndY = std::min(screen_height, startY + drawH);
 
-    if (clipStartX >= clipEndX || clipStartY >= clipEndY)
-    {
-        return;
-    }
+    if (clipStartX >= clipEndX || clipStartY >= clipEndY) return;
 
     // 4. Draw directly to pixelBuffer (ignoring depthBuffer!)
-    for (int x = clipStartX; x < clipEndX; x++) {
-        for (int y = clipStartY; y < clipEndY; y++) {
+    for (int x = clipStartX; x < clipEndX; x++)
+    {
+        for (int y = clipStartY; y < clipEndY; y++)
+        {
             int localX = x - startX;
             int localY = y - startY;
 
@@ -358,9 +348,7 @@ void Renderer::renderWeapon(const Scene& scene)
             texY = std::clamp(texY, 0, tex.height - 1);
             uint32_t color = tex.at(texX, texY);
 
-            if ((color >> 24) & 0xFF) { // Alpha check
-                sdl.pixelBuffer[y * screen_width + x] = color;
-            }
+            if ((color >> 24) & 0xFF) sdl.pixelBuffer[y * screen_width + x] = color; // alpha check
         }
     }
 }
