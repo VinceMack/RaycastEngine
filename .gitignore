@@ -1,40 +1,21 @@
-// ignore everything but cpp and h files in include and src
-# Ignore all files
+# 1. Ignore everything by default
 *
 
-# Except assets directory
-!assets/
-
-# Except the assets directory and its contents
-!assets/**
-
-# Except include and src directories and their contents
-!include/
-!src/
-
-# Except .h and .cpp files in include and src directories
-!include/**/*.h
-!include/**/*.cpp
-!src/**/*.h
-!src/**/*.cpp
-
-# Except the SDL2.dll file
+#  Re-include gitignore, README, build script, and SDL2 DLLs
+!.gitignore
+!README.md
+!build.bat
 !SDL2.dll
 !SDL2_image.dll
 
-# Except the SDL2 folder
+# Re-include assets and SDL2 directories and their contents
+!assets/
+!assets/**
 !SDL2/
-!SDL2_image/
+!SDL2/**
 
-# Except the include and src directories
+# Re-include include and src directories
 !include/
+!include/**
 !src/
-
-# Except the README.md file
-!README.md
-
-# Except the .gitignore file itself
-!.gitignore
-
-# Except the build.bat file
-!build.bat
+!src/**
