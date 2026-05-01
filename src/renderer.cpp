@@ -100,59 +100,69 @@ RayHit Renderer::castRay(int x, const Player& player, const Map& map_grid)
 void Renderer::renderFloorAndCeiling(const Scene& scene)
 {
     const Player& player = scene.player;
-    const Texture& floorTexture = assetManager.getTexture(3);
-    const Texture& ceilingTexture = assetManager.getTexture(6);
+    const Texture& floorTex = assetManager.getTexture(3);
+    const Texture& ceilTex = assetManager.getTexture(6);
+
+    double wallHeight = 5.0;
+    double eyeHeight = 0.5;
+    double ceilHeight = wallHeight - eyeHeight; // Distance from eye to ceiling
+    int horizon = screen_height / 2;
 
     #pragma omp parallel for
-    for (int y = screen_height / 2; y < screen_height; ++y)
+    for (int y = horizon + 1; y < screen_height; ++y)
     {
-        float p = y - screen_height / 2;
-        float posZ = 0.5f * screen_height;
-        float rowDist = posZ / p;
-
-        double visibility = 1.0 / exp(rowDist * 0.07);
-        visibility = std::min(1.0, std::max(0.0, visibility));
-        double invVis = 1.0 - visibility;
-
-        double fogR_part = 119.0 * invVis;
-        double fogG_part = 119.0 * invVis;
-        double fogB_part = 119.0 * invVis;
+        // 1. Distance to floor and ceiling are now DIFFERENT
+        float p = y - horizon;
+        float rowDistFloor = (eyeHeight * screen_height) / p;
+        float rowDistCeil = (ceilHeight * screen_height) / p;
 
         Vector2 rayDirLeft = player.direction - player.plane;
         Vector2 rayDirRight = player.direction + player.plane;
 
-        double floorStepX = rowDist * (rayDirRight.x - rayDirLeft.x) / screen_width;
-        double floorStepY = rowDist * (rayDirRight.y - rayDirLeft.y) / screen_width;
+        // --- RENDER FLOOR PIXEL (at y) ---
+        double fStepX = rowDistFloor * (rayDirRight.x - rayDirLeft.x) / screen_width;
+        double fStepY = rowDistFloor * (rayDirRight.y - rayDirLeft.y) / screen_width;
+        double fX = player.position.x + rowDistFloor * rayDirLeft.x;
+        double fY = player.position.y + rowDistFloor * rayDirLeft.y;
 
-        double floorX = player.position.x + rowDist * rayDirLeft.x;
-        double floorY = player.position.y + rowDist * rayDirLeft.y;
+        // --- RENDER CEILING PIXEL (at screen_height - y) ---
+        double cStepX = rowDistCeil * (rayDirRight.x - rayDirLeft.x) / screen_width;
+        double cStepY = rowDistCeil * (rayDirRight.y - rayDirLeft.y) / screen_width;
+        double cX = player.position.x + rowDistCeil * rayDirLeft.x;
+        double cY = player.position.y + rowDistCeil * rayDirLeft.y;
 
         for (int x = 0; x < screen_width; ++x)
         {
-            double fracX = floorX - floor(floorX);
-            double fracY = floorY - floor(floorY);
+            // Floor color & fog
+            int tx = wrapPow2((int)((fX - floor(fX)) * floorTex.width), floorTex.width);
+            int ty = wrapPow2((int)((fY - floor(fY)) * floorTex.height), floorTex.height);
+            uint32_t fCol = floorTex.at(tx, ty);
+            
+            double fVis = std::min(1.0, 1.0 / exp(rowDistFloor * 0.07));
+            double fFog = 119.0 * (1.0 - fVis);
 
-            int floorTx = wrapPow2((int)(fracX * floorTexture.width), floorTexture.width);
-            int floorTy = wrapPow2((int)(fracY * floorTexture.height), floorTexture.height);
-            int ceilTx = wrapPow2((int)(fracX * ceilingTexture.width), ceilingTexture.width);
-            int ceilTy = wrapPow2((int)(fracY * ceilingTexture.height), ceilingTexture.height);
+            // Ceiling color & fog
+            int cx = wrapPow2((int)((cX - floor(cX)) * ceilTex.width), ceilTex.width);
+            int cy = wrapPow2((int)((cY - floor(cY)) * ceilTex.height), ceilTex.height);
+            uint32_t cCol = ceilTex.at(cx, cy);
+            
+            double cVis = std::min(1.0, 1.0 / exp(rowDistCeil * 0.07));
+            double cFog = 119.0 * (1.0 - cVis);
 
-            floorX += floorStepX;
-            floorY += floorStepY;
-
-            uint32_t fCol = floorTexture.at(floorTx, floorTy);
-            uint32_t cCol = ceilingTexture.at(ceilTx, ceilTy);
-
-            uint8_t fr = ((fCol >> 16) & 0xFF) * visibility + fogR_part;
-            uint8_t fg = ((fCol >> 8) & 0xFF) * visibility + fogG_part;
-            uint8_t fb = (fCol & 0xFF) * visibility + fogB_part;
-
-            uint8_t cr = ((cCol >> 16) & 0xFF) * visibility + fogR_part;
-            uint8_t cg = ((cCol >> 8) & 0xFF) * visibility + fogG_part;
-            uint8_t cb = (cCol & 0xFF) * visibility + fogB_part;
-
+            // Write Floor
+            uint8_t fr = ((fCol >> 16) & 0xFF) * fVis + fFog;
+            uint8_t fg = ((fCol >> 8) & 0xFF) * fVis + fFog;
+            uint8_t fb = (fCol & 0xFF) * fVis + fFog;
             sdl.pixelBuffer[y * screen_width + x] = (0xFF << 24) | (fr << 16) | (fg << 8) | fb;
-            sdl.pixelBuffer[(screen_height - y - 1) * screen_width + x] = (0xFF << 24) | (cr << 16) | (cg << 8) | cb;
+
+            // Write Ceiling (Mirrored Y)
+            uint8_t cr = ((cCol >> 16) & 0xFF) * cVis + cFog;
+            uint8_t cg = ((cCol >> 8) & 0xFF) * cVis + cFog;
+            uint8_t cb = (cCol & 0xFF) * cVis + cFog;
+            sdl.pixelBuffer[(screen_height - y) * screen_width + x] = (0xFF << 24) | (cr << 16) | (cg << 8) | cb;
+
+            fX += fStepX; fY += fStepY;
+            cX += cStepX; cY += cStepY;
         }
     }
 }
@@ -162,17 +172,31 @@ void Renderer::renderWalls(const Scene& scene)
     const Player& player = scene.player;
     const Map& map_grid = scene.map_grid;
 
+    // DECISION: How tall is the world?
+    double wallHeight = 5.0; // 5 units tall
+    double eyeHeight = 0.5;  // Eyes are 0.5 units above floor
+    int horizon = screen_height / 2;
+
     #pragma omp parallel for
     for (int x = 0; x < screen_width; x++)
     {
         RayHit hit = castRay(x, player, map_grid);
         depthBuffer[x] = hit.distance;
 
-        int line_height = screen_height / hit.distance;
-        int draw_start = -(line_height / 2) + (screen_height / 2);
-        int draw_end = (line_height / 2) + (screen_height / 2);
-        if (draw_start < 0) draw_start = 0;
-        if (draw_end >= screen_height) draw_end = screen_height - 1;
+        // 1. Calculate how many pixels represent 1.0 unit at this distance
+        double pixelPerUnit = screen_height / hit.distance;
+
+        // 2. Calculate the bottom of the wall (where it hits the floor)
+        // Offset from horizon = eyeHeight * pixels per unit
+        int draw_end = horizon + (int)(eyeHeight * pixelPerUnit);
+
+        // 3. Calculate the top of the wall 
+        // We subtract the total height in pixels from the bottom
+        int draw_start = draw_end - (int)(wallHeight * pixelPerUnit);
+
+        // Clamp to screen boundaries
+        int clamped_start = std::max(0, draw_start);
+        int clamped_end = std::min(screen_height - 1, draw_end);
 
         int texNum = hit.wallType - 1;
         const Texture& tex = assetManager.getTexture(texNum);
@@ -182,15 +206,15 @@ void Renderer::renderWalls(const Scene& scene)
         else               wallX = player.position.x + hit.distance * hit.rayDir.x;
         wallX -= floor(wallX);
 
-        int texX = (int)(wallX * (double)tex.width);
-
+        int texX = wrapPow2((int)(wallX * (double)tex.width), tex.width);
         if (hit.side == 0 && hit.rayDir.x > 0) texX = tex.width - texX - 1;
         if (hit.side == 1 && hit.rayDir.y < 0) texX = tex.width - texX - 1;
 
-        texX = wrapPow2(texX, tex.width);
-
-        double step = 1.0 * tex.height / line_height;
-        double texPos = (draw_start - screen_height / 2 + line_height / 2) * step;
+        // 4. Texture step must represent the whole wallHeight
+        double step = 1.0 * tex.height / (wallHeight * pixelPerUnit);
+        
+        // 5. Initial texture position must be relative to the UNCLAMPED draw_start
+        double texPos = (clamped_start - draw_start) * step;
 
         double visibility = 1.0 / exp(hit.distance * 0.07);
         visibility = std::min(1.0, std::max(0.0, visibility));
@@ -198,21 +222,18 @@ void Renderer::renderWalls(const Scene& scene)
         double sideShade = (hit.side == 1) ? 0.5 : 1.0;
         double finalVis = visibility * sideShade;
         double invVis = 1.0 - visibility;
-        double fogR_part = 119.0 * invVis;
-        double fogG_part = 119.0 * invVis;
-        double fogB_part = 119.0 * invVis;
+        double fog_component = 119.0 * invVis;
 
-        uint32_t* pixelPtr = &sdl.pixelBuffer[draw_start * screen_width + x];
-        for (int y = draw_start; y < draw_end; y++)
+        uint32_t* pixelPtr = &sdl.pixelBuffer[clamped_start * screen_width + x];
+        for (int y = clamped_start; y < clamped_end; y++)
         {
             int texY = wrapPow2((int)texPos, tex.height);
             texPos += step;
 
             uint32_t color = tex.at(texX, texY);
-
-            uint8_t r = ((color >> 16) & 0xFF) * finalVis + fogR_part;
-            uint8_t g = ((color >> 8) & 0xFF) * finalVis + fogG_part;
-            uint8_t b = (color & 0xFF) * finalVis + fogB_part;
+            uint8_t r = ((color >> 16) & 0xFF) * finalVis + fog_component;
+            uint8_t g = ((color >> 8) & 0xFF) * finalVis + fog_component;
+            uint8_t b = (color & 0xFF) * finalVis + fog_component;
 
             *pixelPtr = (0xFF << 24) | (r << 16) | (g << 8) | b;
             pixelPtr += screen_width;
