@@ -2,7 +2,7 @@
 
 #include <string>
 #include <cmath>
-#include <algorithm> // Required for std::remove_if
+#include <algorithm>
 #include "types.h"
 #include <queue>
 #include <set>
@@ -53,31 +53,30 @@ void Engine::updateWindowTitle(double deltaTime)
     SDL_SetWindowTitle(sdl.window, ("Raycaster - Frame Time: " + std::to_string(msPerFrame) + "ms").c_str());
 }
 
-std::vector<Vector2> Engine::calculateAStarPath(Vector2 start, Vector2 target)
-{
+std::vector<Vector2> Engine::calculateAStarPath(Vector2 start, Vector2 target) {
     int startX = (int)start.x, startY = (int)start.y;
     int targetX = (int)target.x, targetY = (int)target.y;
 
-    // If start and target are the same, return empty
+    // Boundary check and trivial case
     if (startX == targetX && startY == targetY) return {};
+    if (scene.map_grid.at(targetX, targetY) != 0) return {};
 
-    struct ANode {
-        int x, y;
-        double g, h;
-        ANode* parent;
-        double f() const { return g + h; }
+    // Comparison for priority queue: lowest F-cost first
+    auto cmp = [](Node* a, Node* b) { return a->fCost() > b->fCost(); };
+    std::priority_queue<Node*, std::vector<Node*>, decltype(cmp)> openList(cmp);
+    
+    // Heuristic: Octile distance (math for 8-way grid movement)
+    auto getHeuristic = [&](int x, int y) {
+        int dx = std::abs(x - targetX);
+        int dy = std::abs(y - targetY);
+        return (dx > dy) ? (dx - dy + 1.414 * dy) : (dy - dx + 1.414 * dx);
     };
 
-    // Priority queue to get node with lowest F cost
-    auto cmp = [](ANode* a, ANode* b) { return a->f() > b->f(); };
-    std::priority_queue<ANode*, std::vector<ANode*>, decltype(cmp)> openList(cmp);
-    
-    // Track visited nodes to avoid infinite loops
     bool closedList[map_size][map_size] = {false};
-    std::vector<ANode*> allNodes; // For memory cleanup
+    std::vector<Node*> allNodes; // Keep track for memory cleanup
 
-    auto addNode = [&](int x, int y, double g, ANode* p) {
-        ANode* n = new ANode{x, y, g, std::abs(x - targetX) + (double)std::abs(y - targetY), p};
+    auto addNode = [&](int x, int y, double g, Node* p) {
+        Node* n = new Node{x, y, g, getHeuristic(x, y), p};
         allNodes.push_back(n);
         openList.push(n);
     };
@@ -85,40 +84,53 @@ std::vector<Vector2> Engine::calculateAStarPath(Vector2 start, Vector2 target)
     addNode(startX, startY, 0, nullptr);
 
     while (!openList.empty()) {
-        ANode* current = openList.top();
+        Node* current = openList.top();
         openList.pop();
 
+        // Path found!
         if (current->x == targetX && current->y == targetY) {
-            // Path found! Reconstruct it
             std::vector<Vector2> path;
             while (current->parent != nullptr) {
                 path.push_back({(double)current->x, (double)current->y});
                 current = current->parent;
             }
-            // Cleanup memory
             for (auto n : allNodes) delete n;
-            return path; // Note: Path is Target -> Start for easy pop_back()
+            return path; // Reconstructed Target -> Start
         }
 
         if (closedList[current->x][current->y]) continue;
         closedList[current->x][current->y] = true;
 
-        // Check 4 Neighbors (Up, Down, Left, Right)
-        int dx[] = {0, 0, 1, -1};
-        int dy[] = {1, -1, 0, 0};
+        // Check 8 Neighbors
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
 
-        for (int i = 0; i < 4; i++) {
-            int nx = current->x + dx[i];
-            int ny = current->y + dy[i];
+                int nx = current->x + dx;
+                int ny = current->y + dy;
 
-            if (nx >= 0 && nx < map_size && ny >= 0 && ny < map_size &&
-                scene.map_grid.at(nx, ny) == 0 && !closedList[nx][ny]) {
-                addNode(nx, ny, current->g + 1, current);
+                // Basic grid and wall check
+                if (nx >= 0 && nx < map_size && ny >= 0 && ny < map_size &&
+                    scene.map_grid.at(nx, ny) == 0 && !closedList[nx][ny]) {
+                    
+                    // --- CORNER CUTTING PREVENTION ---
+                    // If moving diagonally, ensure both adjacent orthogonal cells are empty
+                    // Example: Moving NE? Must ensure N and E are not walls.
+                    if (std::abs(dx) + std::abs(dy) == 2) {
+                        if (scene.map_grid.at(current->x + dx, current->y) != 0 || 
+                            scene.map_grid.at(current->x, current->y + dy) != 0) {
+                            continue; 
+                        }
+                    }
+
+                    double stepCost = (std::abs(dx) + std::abs(dy) == 2) ? 1.414 : 1.0;
+                    addNode(nx, ny, current->gCost + stepCost, current);
+                }
             }
         }
     }
 
-    // No path found
+    // Cleanup memory if no path found
     for (auto n : allNodes) delete n;
     return {};
 }

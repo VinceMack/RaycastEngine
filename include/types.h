@@ -75,12 +75,15 @@ struct Node
 {
     int x, y;
     double gCost; // Distance from start
-    double hCost; // Distance to end (heuristic)
+    double hCost; // Heuristic distance to target
     Node* parent = nullptr;
 
     double fCost() const { return gCost + hCost; }
     
-    bool operator>(const Node& other) const { return (gCost + hCost) > (other.gCost + other.hCost); }
+    // Comparison for the priority queue (lowest fCost at the top)
+    bool operator>(const Node& other) const { 
+        return fCost() > other.fCost(); 
+    }
 };
 
 struct Player
