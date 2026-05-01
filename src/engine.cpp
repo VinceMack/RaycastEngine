@@ -204,14 +204,15 @@ std::vector<Vector2> Engine::calculateAStarPath(Vector2 start, Vector2 target) {
     return {};
 }
 
-void Engine::updateSmartAI(Entity& e, double deltaTime)
+void Engine::updateSmartAI(Entity& e, double deltaTime, int& pathsCalculated)
 {
     e.pathTimer -= deltaTime;
     
-    // 1. Path Planning (once every 0.5s to save CPU)
-    if (e.pathTimer <= 0 || e.currentPath.empty()) {
+    // 1. Path Planning (Queueing effect: limit A* calculations per frame)
+    if ((e.pathTimer <= 0 || e.currentPath.empty()) && pathsCalculated < 2) {
         e.currentPath = calculateAStarPath(e.position, scene.player.position);
         e.pathTimer = 0.5f; 
+        pathsCalculated++;
     }
 
     // 2. Path Following
@@ -233,7 +234,7 @@ void Engine::updateSmartAI(Entity& e, double deltaTime)
     }
 }
 
-void Engine::updateEnemyAI(Entity& e, double deltaTime)
+void Engine::updateEnemyAI(Entity& e, double deltaTime, int& pathsCalculated)
 {
     if (e.behavior == AIBehavior::DIRECT) {
         // --- YOUR CURRENT IMPLEMENTATION ---
@@ -245,12 +246,14 @@ void Engine::updateEnemyAI(Entity& e, double deltaTime)
         }
     } 
     else if (e.behavior == AIBehavior::SMART) {
-        updateSmartAI(e, deltaTime);
+        updateSmartAI(e, deltaTime, pathsCalculated);
     }
 }
 
 void Engine::updateEntities(double deltaTime)
 {
+    int pathsCalculated = 0;
+
     // 1. Process Logic and Mark for Deletion
     for (auto& e : scene.entities)
     {
@@ -285,7 +288,7 @@ void Engine::updateEntities(double deltaTime)
                 break;
 
             case EntityType::ENEMY:
-                updateEnemyAI(e, deltaTime); 
+                updateEnemyAI(e, deltaTime, pathsCalculated); 
                 break;
 
             default:
@@ -297,7 +300,7 @@ void Engine::updateEntities(double deltaTime)
     // This moves all "marked" entities to the end and shrinks the vector.
     scene.entities.erase(
         std::remove_if(scene.entities.begin(), scene.entities.end(),
-            [](const Entity& e) { return e.dist < 0.0; }), 
+            [](const Entity& e) { return e.dist < 0.0; }),
         scene.entities.end()
     );
 }
