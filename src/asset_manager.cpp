@@ -16,9 +16,11 @@ AssetManager::AssetManager()
     
     // Entity Textures
     loadTexture("slime",        "assets/slime.png");
+    loadTexture("slime_damaged", "assets/slime_damaged.png");
     loadTexture("sign",         "assets/sign.png");
     loadTexture("save_disk",    "assets/save_disk.png");
     loadTexture("ghost",        "assets/ghost.png");
+    loadTexture("ghost_damaged","assets/ghost_damaged.png");
     
     // Weapon Textures
     int pWorld = loadTexture("pistol_world", "assets/pistol_world.png");
@@ -27,8 +29,8 @@ AssetManager::AssetManager()
     int sHeld  = loadTexture("smg_held",     "assets/smg_held.png");
 
     // Register Weapons
-    registerWeapon(WeaponID::PISTOL, { WeaponID::PISTOL, "Pistol", pWorld, pHeld });
-    registerWeapon(WeaponID::SMG,    { WeaponID::SMG,    "SMG",    sWorld, sHeld });
+    registerWeapon(WeaponID::PISTOL, { WeaponID::PISTOL, "Pistol", pWorld, pHeld, 0.4f, false, 25 });
+    registerWeapon(WeaponID::SMG,    { WeaponID::SMG,    "SMG",    sWorld, sHeld, 0.1f, true, 15 });
 }
 
 int AssetManager::loadTexture(const std::string& name, const std::string& path) {

@@ -41,10 +41,84 @@ void Engine::processEvents(SDL_Event& event)
     }
 }
 
+void Engine::fireWeapon()
+{
+    if (!scene.player.currentWeapon) return;
+
+    // 1. Find the distance to the wall in the center of the screen
+    RayHit wallHit = renderer.castRay(screen_width / 2, scene.player, scene.map_grid);
+    double closestDist = wallHit.distance;
+    Entity* targetedEntity = nullptr;
+
+    // 2. Check entities
+    for (auto& e : scene.entities) {
+        if (e.type != EntityType::ENEMY || e.isDead) continue;
+
+        // Use the same math as the renderer to find the sprite's screen position
+        double spriteX = e.position.x - scene.player.position.x;
+        double spriteY = e.position.y - scene.player.position.y;
+        double invDet = 1.0 / (scene.player.plane.x * scene.player.direction.y - scene.player.direction.x * scene.player.plane.y);
+        double transformX = invDet * (scene.player.direction.y * spriteX - scene.player.direction.x * spriteY);
+        double transformY = invDet * (-scene.player.plane.y * spriteX + scene.player.plane.x * spriteY);
+
+        if (transformY <= 0) continue; // Behind player
+
+        int spriteScreenX = int((screen_width / 2) * (1 + transformX / transformY));
+        int spriteHeight = std::abs(int(screen_height / transformY * e.scale));
+        const Texture& tex = assetManager.getTexture(e.textureIndex);
+        int spriteWidth = std::abs(int(spriteHeight * ((double)tex.width / tex.height)));
+
+        // 3. Is the center of the screen (screen_width/2) inside the sprite's width?
+        int leftEdge = spriteScreenX - spriteWidth / 2;
+        int rightEdge = spriteScreenX + spriteWidth / 2;
+
+        if (screen_width / 2 >= leftEdge && screen_width / 2 <= rightEdge) {
+            // Check if this entity is closer than the wall and closer than any other previously checked entity
+            if (transformY < closestDist) {
+                closestDist = transformY;
+                targetedEntity = &e;
+            }
+        }
+    }
+
+    // 4. Apply damage
+    if (targetedEntity) {
+        targetedEntity->takeDamage(scene.player.currentWeapon->damage);
+    }
+}
+
 void Engine::update(double deltaTime)
 {
     input.handlePlayerInput(deltaTime, scene.player, scene.map_grid);
     updateEntities(deltaTime);
+
+    Player& p = scene.player;
+    if (!p.currentWeapon) return;
+
+    // 1. Always decrement the cooldown
+    if (p.weaponCooldown > 0) p.weaponCooldown -= (float)deltaTime;
+
+    // 2. Determine if we are pulling the trigger
+    bool isFiring = input.isActionPressed("Fire");
+    bool canFire = (p.weaponCooldown <= 0);
+
+    if (isFiring && canFire)
+    {
+        bool triggerPulledThisFrame = !wasFirePressedLastFrame;
+        
+        // 3. Logic Fork:
+        // If Automatic: Fire as long as trigger is held
+        // If Semi-Auto: Fire only if trigger was just pulled this frame
+        if (p.currentWeapon->isAutomatic || triggerPulledThisFrame)
+        {
+            fireWeapon();
+            // Reset cooldown based on weapon definition
+            p.weaponCooldown = p.currentWeapon->fireRate;
+        }
+    }
+
+    // 4. Update the "Last Frame" state
+    wasFirePressedLastFrame = isFiring;
 }
 
 void Engine::updateWindowTitle(double deltaTime)
@@ -186,6 +260,10 @@ void Engine::updateEntities(double deltaTime)
     for (auto& e : scene.entities)
     {
         e.totalTime += deltaTime;
+
+        if (e.damageTimer > 0) {
+            e.damageTimer -= (float)deltaTime;
+        }
 
         // Pickup Logic
         if (e.type == EntityType::ITEM) 

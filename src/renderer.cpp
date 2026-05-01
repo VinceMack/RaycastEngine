@@ -239,23 +239,25 @@ void Renderer::renderWalls(const Scene& scene)
 void Renderer::renderEntities(const Scene& scene)
 {
     const Player& player = scene.player;
-    // Work on a copy for sorting, or sort the scene entities directly if preferred
-    std::vector<Entity> entities = scene.entities;
+    
+    // 1. Filter and copy entities (we skip dead ones for now to keep the world clean)
+    std::vector<Entity> entities;
+    for (const auto& e : scene.entities) {
+        if (!e.isDead) entities.push_back(e);
+    }
 
-    // 1. Calculate squared distance for each entity (faster than sqrt)
-    for (auto& e : entities)
-    {
+    // 2. Calculate squared distance for sorting
+    for (auto& e : entities) {
         e.dist = ((player.position.x - e.position.x) * (player.position.x - e.position.x) + 
                   (player.position.y - e.position.y) * (player.position.y - e.position.y));
     }
 
-    // 2. Sort entities: Farthest to Nearest (Painter's Algorithm)
-    std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b)
-    {
+    // 3. Sort entities: Farthest to Nearest (Painter's Algorithm)
+    std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
         return a.dist > b.dist;
     });
 
-    // 3. Project and Draw
+    // 4. Project and Draw
     for (const auto& e : entities) {
         double spriteX = e.position.x - player.position.x;
         double spriteY = e.position.y - player.position.y;
@@ -266,54 +268,51 @@ void Renderer::renderEntities(const Scene& scene)
 
         if (transformY <= 0) continue; 
 
-        // Use the entity's specific frame for animation
-        const Texture& tex = assetManager.getTexture(e.textureIndex + e.currentFrame);
+        // --- DYNAMIC TEXTURE SELECTION ---
+        // If the entity was recently hit, show the "damaged" texture (assumed to be index + 1)
+        int textureOffset = (e.damageTimer > 0) ? 1 : 0;
+        const Texture& tex = assetManager.getTexture(e.textureIndex + e.currentFrame + textureOffset);
+        
         if (tex.width <= 0 || tex.height <= 0) continue;
 
         double aspectRatio = (double)tex.width / (double)tex.height;
-
         int spriteScreenX = int((screen_width / 2) * (1 + transformX / transformY));
-        
-        // Use the entity's specific vOffset (1.0 = floor, 0.0 = horizon)
         int spriteScreenY = int((screen_height / 2) * (1 + e.vOffset / transformY));
 
-        // Use the entity's specific scale
         int spriteHeight = std::abs(int(screen_height / transformY * e.scale));
         int spriteWidth = std::abs(int(spriteHeight * aspectRatio));
-        if (spriteHeight <= 0 || spriteWidth <= 0) continue;
 
         int drawEndY = std::min(screen_height, spriteScreenY);
         int drawStartY = std::max(0, spriteScreenY - spriteHeight);
         int drawStartX = std::max(0, -spriteWidth / 2 + spriteScreenX);
         int drawEndX = std::min(screen_width, spriteWidth / 2 + spriteScreenX);
+
         if (drawStartX >= drawEndX || drawStartY >= drawEndY) continue;
 
         int spriteLeftX = -spriteWidth / 2 + spriteScreenX;
         int spriteTopY = spriteScreenY - spriteHeight;
 
-        // Fog calculation (same as before)
+        // Fog calculation
         double visibility = 1.0 / exp(transformY * 0.07);
         visibility = std::min(1.0, std::max(0.0, visibility));
         double invVis = 1.0 - visibility;
         double fog_component = 119.0 * invVis; 
 
-        for (int stripe = drawStartX; stripe < drawEndX; stripe++)
-        {
+        for (int stripe = drawStartX; stripe < drawEndX; stripe++) {
             int texX = int(256 * (stripe - spriteLeftX) * tex.width / spriteWidth) / 256;
             texX = std::clamp(texX, 0, tex.width - 1);
 
-            if (transformY < depthBuffer[stripe])
-            {
+            // Depth check against walls
+            if (transformY < depthBuffer[stripe]) {
                 uint32_t* pixelPtr = &sdl.pixelBuffer[drawStartY * screen_width + stripe];
                 
-                for (int y = drawStartY; y < drawEndY; y++)
-                {
+                for (int y = drawStartY; y < drawEndY; y++) {
                     int texY = ((y - spriteTopY) * tex.height) / spriteHeight;
                     texY = std::clamp(texY, 0, tex.height - 1);
                     uint32_t color = tex.at(texX, texY);
 
-                    if ((color >> 24) & 0xFF)
-                    { 
+                    // Alpha blending (only draw if not fully transparent)
+                    if ((color >> 24) & 0xFF) { 
                         uint8_t r = ((color >> 16) & 0xFF) * visibility + fog_component;
                         uint8_t g = ((color >> 8) & 0xFF) * visibility + fog_component;
                         uint8_t b = (color & 0xFF) * visibility + fog_component;

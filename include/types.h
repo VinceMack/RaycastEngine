@@ -34,9 +34,14 @@ enum class WeaponID
 struct WeaponDefinition
 {
     WeaponID id;
-    std::string name;      // For UI display
-    int worldTextureIndex; // For the ITEM on the floor
-    int handTextureIndex;  // For the gun in the hand
+    std::string name;
+    int worldTextureIndex;
+    int handTextureIndex;
+    
+    // NEW STATS
+    float fireRate;    // Seconds between shots (e.g., 0.1 for SMG, 0.5 for Pistol)
+    bool isAutomatic;  // True = hold to fire, False = click per shot
+    int damage;
 };
 
 enum class AIBehavior {
@@ -63,6 +68,16 @@ struct Entity
     AIBehavior behavior = AIBehavior::SMART;
     std::vector<Vector2> currentPath;           // Coordinates of grid cells to follow
     float pathTimer = 0.0f;                     // Recalculate path every X seconds
+    int health = 100;
+    float damageTimer = 0.0f; // Shows red/damaged texture for X seconds
+    bool isDead = false;
+
+    void takeDamage(int amount)
+    {
+        health -= amount;
+        damageTimer = 0.03f; // Flash for 100ms
+        if (health <= 0) isDead = true;
+    }
 
     Entity(Vector2 pos, int texIdx, EntityType t = EntityType::STATIC, 
            AIBehavior b = AIBehavior::DIRECT, double s = 1.0, double vOff = 1.0)
@@ -95,6 +110,7 @@ struct Player
     double rotSpeed;
     double mouseSensitivity;
     const WeaponDefinition* currentWeapon = nullptr;
+    float weaponCooldown = 0.0f; // Current timer remaining before next shot
 
     Player(Vector2 pos, Vector2 dir, Vector2 planeVec, double rotationSpeed, double movementSpeed, double mouseSens)
         : position(pos), direction(dir), plane(planeVec), moveSpeed(movementSpeed), rotSpeed(rotationSpeed), mouseSensitivity(mouseSens)

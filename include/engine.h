@@ -19,7 +19,9 @@ private:
     Scene scene;
     Renderer renderer;
     Input input;
+    bool wasFirePressedLastFrame = false;
 
+    void fireWeapon();
     void processEvents(SDL_Event& event);
     void update(double deltaTime);
     void updateWindowTitle(double deltaTime);
