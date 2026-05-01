@@ -102,6 +102,7 @@ void Renderer::renderFloorAndCeiling(const Scene& scene)
     const Player& player = scene.player;
     const Texture& floorTex = assetManager.getTexture(3);
     const Texture& ceilTex = assetManager.getTexture(6);
+    const EnvironmentSettings& env = scene.envSettings;
 
     double ceilHeight = WALL_HEIGHT - EYE_HEIGHT; // Distance from eye to ceiling
     int horizon = screen_height / 2;
@@ -109,7 +110,6 @@ void Renderer::renderFloorAndCeiling(const Scene& scene)
     #pragma omp parallel for
     for (int y = horizon + 1; y < screen_height; ++y)
     {
-        // 1. Distance to floor and ceiling are now DIFFERENT
         float p = y - horizon;
         float rowDistFloor = (EYE_HEIGHT * screen_height) / p;
         float rowDistCeil = (ceilHeight * screen_height) / p;
@@ -136,27 +136,27 @@ void Renderer::renderFloorAndCeiling(const Scene& scene)
             int ty = wrapPow2((int)((fY - floor(fY)) * floorTex.height), floorTex.height);
             uint32_t fCol = floorTex.at(tx, ty);
             
-            double fVis = std::min(1.0, 1.0 / exp(rowDistFloor * 0.07));
-            double fFog = 119.0 * (1.0 - fVis);
+            double fVis = std::min(1.0, 1.0 / exp(rowDistFloor * env.fogDensity));
+            double fInvVis = 1.0 - fVis;
 
             // Ceiling color & fog
             int cx = wrapPow2((int)((cX - floor(cX)) * ceilTex.width), ceilTex.width);
             int cy = wrapPow2((int)((cY - floor(cY)) * ceilTex.height), ceilTex.height);
             uint32_t cCol = ceilTex.at(cx, cy);
             
-            double cVis = std::min(1.0, 1.0 / exp(rowDistCeil * 0.07));
-            double cFog = 119.0 * (1.0 - cVis);
+            double cVis = std::min(1.0, 1.0 / exp(rowDistCeil * env.fogDensity));
+            double cInvVis = 1.0 - cVis;
 
             // Write Floor
-            uint8_t fr = ((fCol >> 16) & 0xFF) * fVis + fFog;
-            uint8_t fg = ((fCol >> 8) & 0xFF) * fVis + fFog;
-            uint8_t fb = (fCol & 0xFF) * fVis + fFog;
+            uint8_t fr = ((fCol >> 16) & 0xFF) * fVis + (env.fogColorR * fInvVis);
+            uint8_t fg = ((fCol >> 8) & 0xFF) * fVis + (env.fogColorG * fInvVis);
+            uint8_t fb = (fCol & 0xFF) * fVis + (env.fogColorB * fInvVis);
             sdl.pixelBuffer[y * screen_width + x] = (0xFF << 24) | (fr << 16) | (fg << 8) | fb;
 
             // Write Ceiling (Mirrored Y)
-            uint8_t cr = ((cCol >> 16) & 0xFF) * cVis + cFog;
-            uint8_t cg = ((cCol >> 8) & 0xFF) * cVis + cFog;
-            uint8_t cb = (cCol & 0xFF) * cVis + cFog;
+            uint8_t cr = ((cCol >> 16) & 0xFF) * cVis + (env.fogColorR * cInvVis);
+            uint8_t cg = ((cCol >> 8) & 0xFF) * cVis + (env.fogColorG * cInvVis);
+            uint8_t cb = (cCol & 0xFF) * cVis + (env.fogColorB * cInvVis);
             sdl.pixelBuffer[(screen_height - y) * screen_width + x] = (0xFF << 24) | (cr << 16) | (cg << 8) | cb;
 
             fX += fStepX; fY += fStepY;
@@ -169,6 +169,7 @@ void Renderer::renderWalls(const Scene& scene)
 {
     const Player& player = scene.player;
     const Map& map_grid = scene.map_grid;
+    const EnvironmentSettings& env = scene.envSettings;
     
     int horizon = screen_height / 2;
 
@@ -178,18 +179,10 @@ void Renderer::renderWalls(const Scene& scene)
         RayHit hit = castRay(x, player, map_grid);
         depthBuffer[x] = hit.distance;
 
-        // 1. Calculate how many pixels represent 1.0 unit at this distance
         double pixelPerUnit = screen_height / hit.distance;
-
-        // 2. Calculate the bottom of the wall (where it hits the floor)
-        // Offset from horizon = EYE_HEIGHT * pixels per unit
         int draw_end = horizon + (int)(EYE_HEIGHT * pixelPerUnit);
-
-        // 3. Calculate the top of the wall 
-        // We subtract the total height in pixels from the bottom
         int draw_start = draw_end - (int)(WALL_HEIGHT * pixelPerUnit);
 
-        // Clamp to screen boundaries
         int clamped_start = std::max(0, draw_start);
         int clamped_end = std::min(screen_height - 1, draw_end);
 
@@ -205,19 +198,19 @@ void Renderer::renderWalls(const Scene& scene)
         if (hit.side == 0 && hit.rayDir.x > 0) texX = tex.width - texX - 1;
         if (hit.side == 1 && hit.rayDir.y < 0) texX = tex.width - texX - 1;
 
-        // 4. Texture step must represent the whole WALL_HEIGHT
         double step = 1.0 * tex.height / (WALL_HEIGHT * pixelPerUnit);
-        
-        // 5. Initial texture position must be relative to the UNCLAMPED draw_start
         double texPos = (clamped_start - draw_start) * step;
 
-        double visibility = 1.0 / exp(hit.distance * 0.07);
+        double visibility = 1.0 / exp(hit.distance * env.fogDensity);
         visibility = std::min(1.0, std::max(0.0, visibility));
 
         double sideShade = (hit.side == 1) ? 0.5 : 1.0;
         double finalVis = visibility * sideShade;
         double invVis = 1.0 - visibility;
-        double fog_component = 119.0 * invVis;
+
+        double fogR = env.fogColorR * invVis;
+        double fogG = env.fogColorG * invVis;
+        double fogB = env.fogColorB * invVis;
 
         uint32_t* pixelPtr = &sdl.pixelBuffer[clamped_start * screen_width + x];
         for (int y = clamped_start; y < clamped_end; y++)
@@ -226,9 +219,9 @@ void Renderer::renderWalls(const Scene& scene)
             texPos += step;
 
             uint32_t color = tex.at(texX, texY);
-            uint8_t r = ((color >> 16) & 0xFF) * finalVis + fog_component;
-            uint8_t g = ((color >> 8) & 0xFF) * finalVis + fog_component;
-            uint8_t b = (color & 0xFF) * finalVis + fog_component;
+            uint8_t r = ((color >> 16) & 0xFF) * finalVis + fogR;
+            uint8_t g = ((color >> 8) & 0xFF) * finalVis + fogG;
+            uint8_t b = (color & 0xFF) * finalVis + fogB;
 
             *pixelPtr = (0xFF << 24) | (r << 16) | (g << 8) | b;
             pixelPtr += screen_width;
@@ -239,12 +232,13 @@ void Renderer::renderWalls(const Scene& scene)
 void Renderer::renderEntities(const Scene& scene)
 {
     const Player& player = scene.player;
+    const EnvironmentSettings& env = scene.envSettings;
     
     std::vector<const Entity*> entityPtrs;
     entityPtrs.reserve(scene.entities.size());
 
     for (const auto& e : scene.entities) {
-        if (!e.isDead && e.dist >= 0.0) {
+        if (!e.isDead && !e.markedForDeletion) {
             entityPtrs.push_back(&e);
         }
     }
@@ -255,7 +249,7 @@ void Renderer::renderEntities(const Scene& scene)
                   (player.position.y - e->position.y) * (player.position.y - e->position.y));
     }
 
-    std::sort(entityPtrs.begin(), entityPtrs.end(), [](const Entity* a, const Entity* b) {
+    std::sort(entityPtrs.begin(), entityPtrs.end(),[](const Entity* a, const Entity* b) {
         return a->dist > b->dist;
     });
 
@@ -270,7 +264,6 @@ void Renderer::renderEntities(const Scene& scene)
 
         if (transformY <= 0) continue; 
 
-        // Use damagedTextureIndex if active, otherwise fallback to base texture + animation frame
         int activeTexIdx = e.textureIndex + e.currentFrame;
         if (e.damageTimer > 0 && e.damagedTextureIndex != -1) {
             activeTexIdx = e.damagedTextureIndex;
@@ -296,10 +289,13 @@ void Renderer::renderEntities(const Scene& scene)
         int spriteLeftX = -spriteWidth / 2 + spriteScreenX;
         int spriteTopY = spriteScreenY - spriteHeight;
 
-        double visibility = 1.0 / exp(transformY * 0.07);
+        double visibility = 1.0 / exp(transformY * env.fogDensity);
         visibility = std::min(1.0, std::max(0.0, visibility));
         double invVis = 1.0 - visibility;
-        double fog_component = 119.0 * invVis; 
+        
+        double fogR = env.fogColorR * invVis;
+        double fogG = env.fogColorG * invVis;
+        double fogB = env.fogColorB * invVis;
 
         for (int stripe = drawStartX; stripe < drawEndX; stripe++) {
             int texX = int(256 * (stripe - spriteLeftX) * tex.width / spriteWidth) / 256;
@@ -314,9 +310,9 @@ void Renderer::renderEntities(const Scene& scene)
                     uint32_t color = tex.at(texX, texY);
 
                     if ((color >> 24) & 0xFF) { 
-                        uint8_t r = ((color >> 16) & 0xFF) * visibility + fog_component;
-                        uint8_t g = ((color >> 8) & 0xFF) * visibility + fog_component;
-                        uint8_t b = (color & 0xFF) * visibility + fog_component;
+                        uint8_t r = ((color >> 16) & 0xFF) * visibility + fogR;
+                        uint8_t g = ((color >> 8) & 0xFF) * visibility + fogG;
+                        uint8_t b = (color & 0xFF) * visibility + fogB;
                         *pixelPtr = (0xFF << 24) | (r << 16) | (g << 8) | b;
                     }
                     pixelPtr += screen_width;

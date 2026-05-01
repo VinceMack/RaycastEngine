@@ -81,11 +81,22 @@ struct Entity
         if (health <= 0) isDead = true;
     }
 
+    // UPDATED CONSTRUCTOR: Added numFrames and frameDuration
     Entity(Vector2 pos, int texIdx, EntityType t = EntityType::STATIC, 
-           AIBehavior b = AIBehavior::DIRECT, double s = 1.0, double vOff = 1.0)
+           AIBehavior b = AIBehavior::DIRECT, double s = 1.0, double vOff = 1.0, 
+           int nFrames = 1, float fDur = 0.2f)
         : position(pos), velocity({0,0}), textureIndex(texIdx), type(t), behavior(b),
-          scale(s), vOffset(vOff), numFrames(1), currentFrame(0), frameTimer(0), dist(0) 
+          scale(s), vOffset(vOff), numFrames(nFrames), frameDuration(fDur), 
+          currentFrame(0), frameTimer(0), dist(0) 
     {}
+};
+
+struct EnvironmentSettings
+{
+    double fogDensity = 0.07;
+    uint8_t fogColorR = 119;
+    uint8_t fogColorG = 119;
+    uint8_t fogColorB = 119;
 };
 
 struct Node

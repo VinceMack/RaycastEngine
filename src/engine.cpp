@@ -263,6 +263,15 @@ void Engine::updateEntities(double deltaTime)
             e.damageTimer -= (float)deltaTime;
         }
 
+        // --- NEW: Animation Logic ---
+        if (e.numFrames > 1) {
+            e.frameTimer += (float)deltaTime;
+            if (e.frameTimer >= e.frameDuration) {
+                e.frameTimer -= e.frameDuration; // Keep remainder for smooth timing
+                e.currentFrame = (e.currentFrame + 1) % e.numFrames;
+            }
+        }
+
         // Pickup Logic
         if (e.type == EntityType::ITEM) 
         {
@@ -297,7 +306,6 @@ void Engine::updateEntities(double deltaTime)
     }
 
     // 2. Physical Deletion (Erase-Remove Idiom)
-    // This moves all "marked" entities to the end and shrinks the vector.
     scene.entities.erase(
         std::remove_if(scene.entities.begin(), scene.entities.end(),
             [](const Entity& e) { return e.markedForDeletion; }),

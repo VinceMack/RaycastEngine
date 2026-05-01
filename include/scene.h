@@ -14,6 +14,7 @@ public:
     Player player;
     Map map_grid;
     std::vector<Entity> entities;
+    EnvironmentSettings envSettings; // <-- New environment settings
 
 private:
     void spawnTestSprites(AssetManager& assetManager);
