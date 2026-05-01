@@ -240,25 +240,32 @@ void Renderer::renderEntities(const Scene& scene)
 {
     const Player& player = scene.player;
     
-    // 1. Filter and copy entities (we skip dead ones for now to keep the world clean)
-    std::vector<Entity> entities;
+    // 1. Filter and collect pointers to avoid copying full Entity structs
+    std::vector<const Entity*> entityPtrs;
+    entityPtrs.reserve(scene.entities.size());
+
     for (const auto& e : scene.entities) {
-        if (!e.isDead) entities.push_back(e);
+        if (!e.isDead && e.dist >= 0.0) {
+            entityPtrs.push_back(&e);
+        }
     }
 
     // 2. Calculate squared distance for sorting
-    for (auto& e : entities) {
-        e.dist = ((player.position.x - e.position.x) * (player.position.x - e.position.x) + 
-                  (player.position.y - e.position.y) * (player.position.y - e.position.y));
+    for (auto* ePtr : entityPtrs) {
+        // cast away const to update distance field used for sorting
+        Entity* e = const_cast<Entity*>(ePtr);
+        e->dist = ((player.position.x - e->position.x) * (player.position.x - e->position.x) + 
+                  (player.position.y - e->position.y) * (player.position.y - e->position.y));
     }
 
-    // 3. Sort entities: Farthest to Nearest (Painter's Algorithm)
-    std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
-        return a.dist > b.dist;
+    // 3. Sort pointers: Farthest to Nearest
+    std::sort(entityPtrs.begin(), entityPtrs.end(), [](const Entity* a, const Entity* b) {
+        return a->dist > b->dist;
     });
 
     // 4. Project and Draw
-    for (const auto& e : entities) {
+    for (const auto* ePtr : entityPtrs) {
+        const Entity& e = *ePtr;
         double spriteX = e.position.x - player.position.x;
         double spriteY = e.position.y - player.position.y;
 
@@ -269,7 +276,6 @@ void Renderer::renderEntities(const Scene& scene)
         if (transformY <= 0) continue; 
 
         // --- DYNAMIC TEXTURE SELECTION ---
-        // If the entity was recently hit, show the "damaged" texture (assumed to be index + 1)
         int textureOffset = (e.damageTimer > 0) ? 1 : 0;
         const Texture& tex = assetManager.getTexture(e.textureIndex + e.currentFrame + textureOffset);
         
@@ -292,7 +298,6 @@ void Renderer::renderEntities(const Scene& scene)
         int spriteLeftX = -spriteWidth / 2 + spriteScreenX;
         int spriteTopY = spriteScreenY - spriteHeight;
 
-        // Fog calculation
         double visibility = 1.0 / exp(transformY * 0.07);
         visibility = std::min(1.0, std::max(0.0, visibility));
         double invVis = 1.0 - visibility;
@@ -302,7 +307,6 @@ void Renderer::renderEntities(const Scene& scene)
             int texX = int(256 * (stripe - spriteLeftX) * tex.width / spriteWidth) / 256;
             texX = std::clamp(texX, 0, tex.width - 1);
 
-            // Depth check against walls
             if (transformY < depthBuffer[stripe]) {
                 uint32_t* pixelPtr = &sdl.pixelBuffer[drawStartY * screen_width + stripe];
                 
@@ -311,7 +315,6 @@ void Renderer::renderEntities(const Scene& scene)
                     texY = std::clamp(texY, 0, tex.height - 1);
                     uint32_t color = tex.at(texX, texY);
 
-                    // Alpha blending (only draw if not fully transparent)
                     if ((color >> 24) & 0xFF) { 
                         uint8_t r = ((color >> 16) & 0xFF) * visibility + fog_component;
                         uint8_t g = ((color >> 8) & 0xFF) * visibility + fog_component;
