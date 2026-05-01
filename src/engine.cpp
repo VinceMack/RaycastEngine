@@ -6,6 +6,7 @@
 #include "types.h"
 #include <queue>
 #include <set>
+#include <deque>
 
 Engine::Engine() : sdl(screen_width, screen_height), assetManager(), scene(assetManager), renderer(sdl, assetManager), input()
 {
@@ -147,12 +148,11 @@ std::vector<Vector2> Engine::calculateAStarPath(Vector2 start, Vector2 target) {
     };
 
     bool closedList[map_size][map_size] = {false};
-    std::vector<Node*> allNodes; // Keep track for memory cleanup
+    std::deque<Node> nodePool; // Automatic memory management with stable pointers
 
     auto addNode = [&](int x, int y, double g, Node* p) {
-        Node* n = new Node{x, y, g, getHeuristic(x, y), p};
-        allNodes.push_back(n);
-        openList.push(n);
+        nodePool.emplace_back(Node{x, y, g, getHeuristic(x, y), p});
+        openList.push(&nodePool.back());
     };
 
     addNode(startX, startY, 0, nullptr);
@@ -168,7 +168,6 @@ std::vector<Vector2> Engine::calculateAStarPath(Vector2 start, Vector2 target) {
                 path.push_back({(double)current->x, (double)current->y});
                 current = current->parent;
             }
-            for (auto n : allNodes) delete n;
             return path; // Reconstructed Target -> Start
         }
 
@@ -188,8 +187,6 @@ std::vector<Vector2> Engine::calculateAStarPath(Vector2 start, Vector2 target) {
                     scene.map_grid.at(nx, ny) == 0 && !closedList[nx][ny]) {
                     
                     // --- CORNER CUTTING PREVENTION ---
-                    // If moving diagonally, ensure both adjacent orthogonal cells are empty
-                    // Example: Moving NE? Must ensure N and E are not walls.
                     if (std::abs(dx) + std::abs(dy) == 2) {
                         if (scene.map_grid.at(current->x + dx, current->y) != 0 || 
                             scene.map_grid.at(current->x, current->y + dy) != 0) {
@@ -204,8 +201,6 @@ std::vector<Vector2> Engine::calculateAStarPath(Vector2 start, Vector2 target) {
         }
     }
 
-    // Cleanup memory if no path found
-    for (auto n : allNodes) delete n;
     return {};
 }
 
