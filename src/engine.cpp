@@ -275,8 +275,8 @@ void Engine::updateEntities(double deltaTime)
                 {
                     scene.player.currentWeapon = assetManager.getWeaponDefinition(e.weaponInside);
                 }
-                e.dist = -1.0; // Marker: mark for deletion
-                continue;      // Skip behavioral logic for this frame
+                e.markedForDeletion = true; // Marker: mark for deletion
+                continue;                   // Skip behavioral logic for this frame
             }
         }
 
@@ -300,7 +300,7 @@ void Engine::updateEntities(double deltaTime)
     // This moves all "marked" entities to the end and shrinks the vector.
     scene.entities.erase(
         std::remove_if(scene.entities.begin(), scene.entities.end(),
-            [](const Entity& e) { return e.dist < 0.0; }),
+            [](const Entity& e) { return e.markedForDeletion; }),
         scene.entities.end()
     );
 }

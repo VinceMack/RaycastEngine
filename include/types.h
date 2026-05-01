@@ -65,18 +65,19 @@ struct Entity
     double vOffset;
     double dist;
     EntityType type;
-    double totalTime;
+    double totalTime;                           // accumulated time for math effects
     AIBehavior behavior = AIBehavior::SMART;
-    std::vector<Vector2> currentPath;
-    float pathTimer = 0.0f;
+    std::vector<Vector2> currentPath;           // Coordinates of grid cells to follow
+    float pathTimer = 0.0f;                     // Recalculate path every X seconds
     int health = 100;
-    float damageTimer = 0.0f;
+    float damageTimer = 0.0f; // Shows red/damaged texture for X seconds
     bool isDead = false;
+    bool markedForDeletion = false; // Dedicated flag for entity removal
 
     void takeDamage(int amount)
     {
         health -= amount;
-        damageTimer = 0.03f;
+        damageTimer = 0.03f; // Flash for 30ms
         if (health <= 0) isDead = true;
     }
 
