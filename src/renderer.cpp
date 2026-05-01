@@ -240,7 +240,6 @@ void Renderer::renderEntities(const Scene& scene)
 {
     const Player& player = scene.player;
     
-    // 1. Filter and collect pointers to avoid copying full Entity structs
     std::vector<const Entity*> entityPtrs;
     entityPtrs.reserve(scene.entities.size());
 
@@ -250,20 +249,16 @@ void Renderer::renderEntities(const Scene& scene)
         }
     }
 
-    // 2. Calculate squared distance for sorting
     for (auto* ePtr : entityPtrs) {
-        // cast away const to update distance field used for sorting
         Entity* e = const_cast<Entity*>(ePtr);
         e->dist = ((player.position.x - e->position.x) * (player.position.x - e->position.x) + 
                   (player.position.y - e->position.y) * (player.position.y - e->position.y));
     }
 
-    // 3. Sort pointers: Farthest to Nearest
     std::sort(entityPtrs.begin(), entityPtrs.end(), [](const Entity* a, const Entity* b) {
         return a->dist > b->dist;
     });
 
-    // 4. Project and Draw
     for (const auto* ePtr : entityPtrs) {
         const Entity& e = *ePtr;
         double spriteX = e.position.x - player.position.x;
@@ -275,10 +270,13 @@ void Renderer::renderEntities(const Scene& scene)
 
         if (transformY <= 0) continue; 
 
-        // --- DYNAMIC TEXTURE SELECTION ---
-        int textureOffset = (e.damageTimer > 0) ? 1 : 0;
-        const Texture& tex = assetManager.getTexture(e.textureIndex + e.currentFrame + textureOffset);
+        // Use damagedTextureIndex if active, otherwise fallback to base texture + animation frame
+        int activeTexIdx = e.textureIndex + e.currentFrame;
+        if (e.damageTimer > 0 && e.damagedTextureIndex != -1) {
+            activeTexIdx = e.damagedTextureIndex;
+        }
         
+        const Texture& tex = assetManager.getTexture(activeTexIdx);
         if (tex.width <= 0 || tex.height <= 0) continue;
 
         double aspectRatio = (double)tex.width / (double)tex.height;

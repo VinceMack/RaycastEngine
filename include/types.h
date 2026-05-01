@@ -55,6 +55,7 @@ struct Entity
     Vector2 position;
     Vector2 velocity;
     int textureIndex;
+    int damagedTextureIndex = -1; // Specific index for damage state
     WeaponID weaponInside = WeaponID::NONE;
     int numFrames;
     float frameTimer;
@@ -64,18 +65,18 @@ struct Entity
     double vOffset;
     double dist;
     EntityType type;
-    double totalTime;                           // accumulated time for math effects
+    double totalTime;
     AIBehavior behavior = AIBehavior::SMART;
-    std::vector<Vector2> currentPath;           // Coordinates of grid cells to follow
-    float pathTimer = 0.0f;                     // Recalculate path every X seconds
+    std::vector<Vector2> currentPath;
+    float pathTimer = 0.0f;
     int health = 100;
-    float damageTimer = 0.0f; // Shows red/damaged texture for X seconds
+    float damageTimer = 0.0f;
     bool isDead = false;
 
     void takeDamage(int amount)
     {
         health -= amount;
-        damageTimer = 0.03f; // Flash for 100ms
+        damageTimer = 0.03f;
         if (health <= 0) isDead = true;
     }
 
