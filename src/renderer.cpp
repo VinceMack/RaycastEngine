@@ -103,9 +103,7 @@ void Renderer::renderFloorAndCeiling(const Scene& scene)
     const Texture& floorTex = assetManager.getTexture(3);
     const Texture& ceilTex = assetManager.getTexture(6);
 
-    double wallHeight = 5.0;
-    double eyeHeight = 0.5;
-    double ceilHeight = wallHeight - eyeHeight; // Distance from eye to ceiling
+    double ceilHeight = WALL_HEIGHT - EYE_HEIGHT; // Distance from eye to ceiling
     int horizon = screen_height / 2;
 
     #pragma omp parallel for
@@ -113,7 +111,7 @@ void Renderer::renderFloorAndCeiling(const Scene& scene)
     {
         // 1. Distance to floor and ceiling are now DIFFERENT
         float p = y - horizon;
-        float rowDistFloor = (eyeHeight * screen_height) / p;
+        float rowDistFloor = (EYE_HEIGHT * screen_height) / p;
         float rowDistCeil = (ceilHeight * screen_height) / p;
 
         Vector2 rayDirLeft = player.direction - player.plane;
@@ -171,10 +169,7 @@ void Renderer::renderWalls(const Scene& scene)
 {
     const Player& player = scene.player;
     const Map& map_grid = scene.map_grid;
-
-    // DECISION: How tall is the world?
-    double wallHeight = 5.0; // 5 units tall
-    double eyeHeight = 0.5;  // Eyes are 0.5 units above floor
+    
     int horizon = screen_height / 2;
 
     #pragma omp parallel for
@@ -187,12 +182,12 @@ void Renderer::renderWalls(const Scene& scene)
         double pixelPerUnit = screen_height / hit.distance;
 
         // 2. Calculate the bottom of the wall (where it hits the floor)
-        // Offset from horizon = eyeHeight * pixels per unit
-        int draw_end = horizon + (int)(eyeHeight * pixelPerUnit);
+        // Offset from horizon = EYE_HEIGHT * pixels per unit
+        int draw_end = horizon + (int)(EYE_HEIGHT * pixelPerUnit);
 
         // 3. Calculate the top of the wall 
         // We subtract the total height in pixels from the bottom
-        int draw_start = draw_end - (int)(wallHeight * pixelPerUnit);
+        int draw_start = draw_end - (int)(WALL_HEIGHT * pixelPerUnit);
 
         // Clamp to screen boundaries
         int clamped_start = std::max(0, draw_start);
@@ -210,8 +205,8 @@ void Renderer::renderWalls(const Scene& scene)
         if (hit.side == 0 && hit.rayDir.x > 0) texX = tex.width - texX - 1;
         if (hit.side == 1 && hit.rayDir.y < 0) texX = tex.width - texX - 1;
 
-        // 4. Texture step must represent the whole wallHeight
-        double step = 1.0 * tex.height / (wallHeight * pixelPerUnit);
+        // 4. Texture step must represent the whole WALL_HEIGHT
+        double step = 1.0 * tex.height / (WALL_HEIGHT * pixelPerUnit);
         
         // 5. Initial texture position must be relative to the UNCLAMPED draw_start
         double texPos = (clamped_start - draw_start) * step;
