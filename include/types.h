@@ -39,6 +39,12 @@ struct WeaponDefinition
     int handTextureIndex;  // For the gun in the hand
 };
 
+enum class AIBehavior {
+    DIRECT,  // Current logic: ignore walls, move straight to player
+    SMART,   // New logic: A* pathfinding, respect walls
+    NONE
+};
+
 struct Entity
 {
     Vector2 position;
@@ -53,13 +59,28 @@ struct Entity
     double vOffset;
     double dist;
     EntityType type;
-    double totalTime; // accumulated time for math effects
+    double totalTime;                           // accumulated time for math effects
+    AIBehavior behavior = AIBehavior::SMART;
+    std::vector<Vector2> currentPath;           // Coordinates of grid cells to follow
+    float pathTimer = 0.0f;                     // Recalculate path every X seconds
 
-    // Updated Constructor
-    Entity(Vector2 pos, int texIdx, EntityType t = EntityType::STATIC, double s = 1.0, double vOff = 1.0)
-        : position(pos), velocity({0,0}), textureIndex(texIdx), type(t), 
+    Entity(Vector2 pos, int texIdx, EntityType t = EntityType::STATIC, 
+           AIBehavior b = AIBehavior::DIRECT, double s = 1.0, double vOff = 1.0)
+        : position(pos), velocity({0,0}), textureIndex(texIdx), type(t), behavior(b),
           scale(s), vOffset(vOff), numFrames(1), currentFrame(0), frameTimer(0), dist(0) 
     {}
+};
+
+struct Node
+{
+    int x, y;
+    double gCost; // Distance from start
+    double hCost; // Distance to end (heuristic)
+    Node* parent = nullptr;
+
+    double fCost() const { return gCost + hCost; }
+    
+    bool operator>(const Node& other) const { return (gCost + hCost) > (other.gCost + other.hCost); }
 };
 
 struct Player

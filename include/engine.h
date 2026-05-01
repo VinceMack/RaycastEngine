@@ -25,4 +25,6 @@ private:
     void updateWindowTitle(double deltaTime);
     void updateEntities(double deltaTime);
     void updateEnemyAI(Entity& e, double deltaTime);
+    void updateSmartAI(Entity& e, double deltaTime);
+    std::vector<Vector2> calculateAStarPath(Vector2 start, Vector2 target);
 };
